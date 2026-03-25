@@ -75,7 +75,7 @@ table thead th{{position:sticky;top:0;background:#f1f5f9;z-index:2}}
   </div>
 </header>
 
-<!-- KPI STRIP (por pais + total CAM) -->
+<!-- KPI STRIP (CAM + paises individuales) -->
 <div class="px-6 py-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3" id="kpiStrip"></div>
 
 <!-- EXECUTIVE INSIGHTS -->
@@ -120,7 +120,7 @@ table thead th{{position:sticky;top:0;background:#f1f5f9;z-index:2}}
   <div class="card p-4 mb-3">
     <div class="font-bold text-gray-700 mb-2 text-sm">Filters</div>
     <div class="filter-row">
-      <select class="fsel" id="fCatCountry" onchange="renderCatTable()"><option value="">All Countries</option><option>CR</option><option>GT</option><option>HN</option><option>NI</option></select>
+      <select class="fsel" id="fCatCountry" onchange="renderCatTable()"><option value="">All Countries</option><option>CAM</option><option>CR</option><option>GT</option><option>HN</option><option>NI</option></select>
       <select class="fsel" id="fCatSBU" onchange="renderCatTable()"><option value="">All SBUs</option><option>CONSUMABLES</option><option>GROCERIES</option><option>PHARMACY</option></select>
       <select class="fsel" id="fCatRole" onchange="renderCatTable()"><option value="">All Roles</option><option>Destination</option><option>Impulse / Convenience</option><option>Complementary</option><option>Other</option></select>
       <select class="fsel" id="fCatSeas" onchange="renderCatTable()"><option value="">All</option><option value="Yes">Seasonal Only</option><option value="No">Non-Seasonal</option></select>
@@ -151,7 +151,7 @@ table thead th{{position:sticky;top:0;background:#f1f5f9;z-index:2}}
   <div class="card p-4 mb-3">
     <div class="font-bold text-gray-700 mb-2 text-sm">Filters — UPC Level (Lift ≥ 1.5)</div>
     <div class="filter-row">
-      <select class="fsel" id="fUPCCountry" onchange="renderUPCTable()"><option value="">All Countries</option><option>CR</option><option>GT</option><option>HN</option><option>NI</option></select>
+      <select class="fsel" id="fUPCCountry" onchange="renderUPCTable()"><option value="">All Countries</option><option>CAM</option><option>CR</option><option>GT</option><option>HN</option><option>NI</option></select>
       <select class="fsel" id="fUPCSBU" onchange="renderUPCTable()"><option value="">All SBUs</option><option>CONSUMABLES</option><option>GROCERIES</option><option>PHARMACY</option></select>
       <select class="fsel" id="fUPCRole" onchange="renderUPCTable()"><option value="">All Roles</option><option>Destination</option><option>Impulse / Convenience</option><option>Complementary</option><option>Other</option></select>
       <select class="fsel" id="fUPCMat" onchange="renderUPCTable()"><option value="">All Matrix</option><option>Market-Wide Growth</option><option>Walmart Share Gain</option><option>Walmart Share Loss</option></select>
@@ -294,11 +294,14 @@ function fmtLift(v){{ return v===null||v===undefined ? '–' : Number(v).toFixed
 function fmtPct(v){{ return v===null||v===undefined ? '–' : (Number(v)>=0?'+':'')+Number(v).toFixed(1)+'pp'; }}
 function fmtAmpChg(v){{ return v===null||v===undefined ? '–' : (Number(v)>=0?'+':'')+Number(v).toFixed(1)+'%'; }}
 
-// ---- KPI Strip — por país ----
+// ---- KPI Strip — CAM + países individuales ----
 function buildKPIs(){{
   const cs = D.country_summary;
-  const CTRY_FULL = {{CR:'Costa Rica',GT:'Guatemala',HN:'Honduras',NI:'Nicaragua'}};
-  const FLAG = {{CR:'🇨🇷',GT:'🇬🇹',HN:'🇭🇳',NI:'🇳🇮'}};
+  const CTRY_FULL = {{
+    CAM:'CAM (Mercado Total)',
+    CR:'Costa Rica', GT:'Guatemala', HN:'Honduras', NI:'Nicaragua'
+  }};
+  const FLAG = {{CAM:'🌎',CR:'🇨🇷',GT:'🇬🇹',HN:'🇭🇳',NI:'🇳🇮'}};
 
   // Top categoría seasonal por país (mayor WM lift)
   const topByCtr = {{}};
@@ -307,38 +310,21 @@ function buildKPIs(){{
       topByCtr[r.c] = r;
   }});
 
-  // Conteos DISTINTOS para Total CAM (una categoría puede aparecer en varios países)
-  const distinctCats    = new Set(D.cat.map(r=>r.cat)).size;
-  const distinctSeas    = new Set(D.cat.filter(r=>r.seas==='Yes').map(r=>r.cat)).size;
-  const distinctSeasPct = (distinctSeas/distinctCats*100).toFixed(1);
-  const distinctGain    = new Set(D.cat.filter(r=>r.mat==='Walmart Share Gain').map(r=>r.cat)).size;
-  const distinctPW      = new Set(D.cat.filter(r=>/Price War/.test(r.comp)).map(r=>r.cat)).size;
-
-  // Tarjeta global CAM (total de todas)
-  const camCard = `
-    <div class="card kpi p-3 border-t-4 border-blue-600">
-      <div class="text-xs text-gray-400 font-bold uppercase tracking-wide">🌎 Total CAM</div>
-      <div class="text-2xl font-black text-blue-700 mt-0.5">${{distinctCats}} cats</div>
-      <div class="text-xs text-gray-300 -mt-0.5 mb-1">(${{D.cat.length}} filas país×cat)</div>
-      <div class="mt-1">
-        <span class="font-bold text-green-700">${{distinctSeas}}</span>
-        <span class="text-gray-500 text-xs"> estacionales distintas</span>
-        <span class="ml-1 text-xs font-bold bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">${{distinctSeasPct}}%</span>
-      </div>
-      <div class="text-xs text-gray-400 mt-1">${{distinctGain}} WM Gain · ${{distinctPW}} Price Wars</div>
-    </div>`;
-
-  // Una tarjeta por país
   const ctrCards = Object.entries(cs).map(([c,v])=>{{
-    const pct = (v.seasonal/v.total*100).toFixed(1);
-    const top = topByCtr[c];
-    const topLabel = top ? top.cat.replace(/^\\d+\\s*-\\s*/,'').slice(0,28) : '—';
-    const topLift  = top ? top.wl.toFixed(1)+'x' : '';
+    const isCAM   = c === 'CAM';
+    const pct     = (v.seasonal/v.total*100).toFixed(1);
+    const top     = topByCtr[c];
+    const topLabel= top ? top.cat.replace(/^\\d+\\s*-\\s*/,'').slice(0,28) : '—';
+    const topLift = top ? top.wl.toFixed(1)+'x' : '';
+    const border  = isCAM ? 'border-blue-600' : 'border-yellow-400';
+    const numClr  = isCAM ? 'text-blue-700'   : 'text-gray-800';
+    const subNote = isCAM ? '<div class="text-xs text-blue-300 mt-0.5">USD · agregado</div>' : '';
     return `
-    <div class="card kpi p-3 border-t-4 border-yellow-400">
+    <div class="card kpi p-3 border-t-4 ${{border}}">
       <div class="text-xs text-gray-400 font-bold uppercase tracking-wide">${{FLAG[c]}} ${{CTRY_FULL[c]}}</div>
+      ${{subNote}}
       <div class="flex items-baseline gap-2 mt-0.5">
-        <span class="text-xl font-black text-gray-800">${{v.total}}</span>
+        <span class="text-xl font-black ${{numClr}}">${{v.total}}</span>
         <span class="text-xs text-gray-400">categorías</span>
       </div>
       <div class="mt-1">
@@ -353,67 +339,48 @@ function buildKPIs(){{
     </div>`;
   }}).join('');
 
-  document.getElementById('kpiStrip').innerHTML = camCard + ctrCards;
+  document.getElementById('kpiStrip').innerHTML = ctrCards;
 }}
 
 // ---- Insights ----
 function buildInsights(){{
   const s=D.stats;
   const cs=D.country_summary;
-  const CTRY_FULL={{CR:'Costa Rica',GT:'Guatemala',HN:'Honduras',NI:'Nicaragua'}};
-  const FLAG={{CR:'🇨🇷',GT:'🇬🇹',HN:'🇭🇳',NI:'🇳🇮'}};
+  const CTRY_FULL={{CAM:'CAM (Mercado Total)',CR:'Costa Rica',GT:'Guatemala',HN:'Honduras',NI:'Nicaragua'}};
+  const FLAG={{CAM:'🌎',CR:'🇨🇷',GT:'🇬🇹',HN:'🇭🇳',NI:'🇳🇮'}};
 
   // Tabla resumen por país
   const tableRows = Object.entries(cs).map(([c,v])=>{{
     const pct=(v.seasonal/v.total*100).toFixed(1);
     const bar=Math.round(parseFloat(pct));
-    return `<tr class="border-b border-gray-100">
+    const isCAM = c==='CAM';
+    const rowCls = isCAM ? 'bg-blue-50 font-semibold border-t-2 border-blue-200' : 'border-b border-gray-100';
+    const pwCell = v.price_war>0
+      ? `<span class="${{isCAM?'text-red-700 font-bold':'text-red-600'}}">${{v.price_war}}</span>`
+      : `<span class="text-gray-300">—</span>`;
+    return `<tr class="${{rowCls}}">
       <td class="py-1.5 px-2 font-bold">${{FLAG[c]}} ${{CTRY_FULL[c]}}</td>
       <td class="py-1.5 px-2 text-center text-gray-700">${{v.total}}</td>
       <td class="py-1.5 px-2 text-center font-bold text-green-700">${{v.seasonal}}</td>
       <td class="py-1.5 px-2">
         <div class="flex items-center gap-2">
           <div class="flex-1 bg-gray-100 rounded-full h-2" style="min-width:80px">
-            <div class="bg-green-500 h-2 rounded-full" style="width:${{bar}}%"></div>
+            <div class="${{isCAM?'bg-blue-500':'bg-green-500'}} h-2 rounded-full" style="width:${{bar}}%"></div>
           </div>
-          <span class="text-xs font-bold text-green-700 w-10">${{pct}}%</span>
+          <span class="text-xs font-bold ${{isCAM?'text-blue-700':'text-green-700'}} w-10">${{pct}}%</span>
         </div>
       </td>
-      <td class="py-1.5 px-2 text-center text-blue-700 font-semibold">${{v.wm_gain}}</td>
-      <td class="py-1.5 px-2 text-center ${{v.price_war>0?'text-red-700 font-bold':'text-gray-400'}}">${{v.price_war||'—'}}</td>
+      <td class="py-1.5 px-2 text-center ${{isCAM?'text-blue-700 font-bold':'text-blue-700 font-semibold'}}">${{v.wm_gain}}</td>
+      <td class="py-1.5 px-2 text-center">${{pwCell}}</td>
     </tr>`;
   }}).join('');
-
-  // Totales row — distintos a nivel CAM
-  const dCat  = new Set(D.cat.map(r=>r.cat)).size;
-  const dSeas = new Set(D.cat.filter(r=>r.seas==='Yes').map(r=>r.cat)).size;
-  const dGain = new Set(D.cat.filter(r=>r.mat==='Walmart Share Gain').map(r=>r.cat)).size;
-  const dPW   = new Set(D.cat.filter(r=>/Price War/.test(r.comp)).map(r=>r.cat)).size;
-  const dPct  = (dSeas/dCat*100).toFixed(1);
-  const dBar  = Math.round(parseFloat(dPct));
-
-  const totRow = `<tr class="bg-blue-50 font-bold border-t-2 border-blue-200">
-    <td class="py-1.5 px-2 text-blue-800">🌎 Total CAM <span class="font-normal text-xs text-blue-400">(distintos)</span></td>
-    <td class="py-1.5 px-2 text-center text-blue-800">${{dCat}}</td>
-    <td class="py-1.5 px-2 text-center text-green-700">${{dSeas}}</td>
-    <td class="py-1.5 px-2">
-      <div class="flex items-center gap-2">
-        <div class="flex-1 bg-gray-100 rounded-full h-2" style="min-width:80px">
-          <div class="bg-blue-500 h-2 rounded-full" style="width:${{dBar}}%"></div>
-        </div>
-        <span class="text-xs font-bold text-blue-700 w-10">${{dPct}}%</span>
-      </div>
-    </td>
-    <td class="py-1.5 px-2 text-center text-blue-700">${{dGain}}</td>
-    <td class="py-1.5 px-2 text-center ${{dPW>0?'text-red-700':'text-gray-400'}}">${{dPW||'—'}}</td>
-  </tr>`;
 
   const summaryTable = `
     <div class="col-span-2 mb-2">
       <table class="w-full text-sm">
         <thead>
           <tr class="text-xs text-gray-400 uppercase tracking-wide border-b-2 border-gray-200">
-            <th class="py-1 px-2 text-left">País</th>
+            <th class="py-1 px-2 text-left">País / Mercado</th>
             <th class="py-1 px-2 text-center">Total Cats</th>
             <th class="py-1 px-2 text-center">Estacionales</th>
             <th class="py-1 px-2 text-left">% Estacional</th>
@@ -421,7 +388,7 @@ function buildInsights(){{
             <th class="py-1 px-2 text-center">Price Wars</th>
           </tr>
         </thead>
-        <tbody>${{tableRows}}${{totRow}}</tbody>
+        <tbody>${{tableRows}}</tbody>
       </table>
     </div>`;
 

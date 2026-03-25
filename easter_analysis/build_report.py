@@ -103,7 +103,7 @@ behavior_dist = count_by(cat_compact, "comp")
 # Top 15 seasonal WM lift categories
 top15 = sorted(seasonal_cat, key=lambda x: -(x["wl"] or 0))[:15]
 
-# Country seasonal summary
+# Country seasonal summary  (CAM first, then alphabetical)
 country_summary = {}
 for r in cat_compact:
     c = r["c"]
@@ -116,6 +116,10 @@ for r in cat_compact:
         country_summary[c]["wm_gain"] += 1
     if "Price War" in r["comp"]:
         country_summary[c]["price_war"] += 1
+
+# Ensure display order: CAM first (virtual market), then individual countries
+_order = ["CAM", "CR", "GT", "HN", "NI"]
+country_summary = {k: country_summary[k] for k in _order if k in country_summary}
 
 # AMP comparison for top destination seasonal
 amp_comparison = [{

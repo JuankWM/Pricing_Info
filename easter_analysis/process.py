@@ -27,6 +27,178 @@ def pct_change(new_val, old_val):
 
 
 # ---------------------------------------------------------------------------
+# FX Rates (local currency → USD)
+# ---------------------------------------------------------------------------
+
+FX_RATES = {
+    "CR": 507.0,   # CRC/USD
+    "GT": 7.55,    # GTQ/USD
+    "HN": 24.68,   # HNL/USD
+    "NI": 36.63,   # NIO/USD
+}
+
+
+def _sdiv(a, b, decimals=4):
+    """Safe division — returns None on zero/None denominator."""
+    try:
+        return round(a / b, decimals) if b else None
+    except (TypeError, ZeroDivisionError):
+        return None
+
+
+# ---------------------------------------------------------------------------
+# CAM Aggregation (virtual market: all countries summed in USD)
+# ---------------------------------------------------------------------------
+
+def aggregate_cam_categories(raw_records: list) -> list:
+    """Aggregate per-country raw BQ category records into one CAM record per category.
+
+    Units are summed directly (they are already comparable).
+    Sales are converted to USD using FX_RATES before summing.
+    The resulting records share the same field schema as raw BQ records
+    so they pass through process_records() unchanged.
+    """
+    from collections import defaultdict
+
+    acc = defaultdict(lambda: {
+        "sbu": "",
+        "ewu": 0.0, "emu": 0.0, "etu": 0.0,
+        "ews": 0.0, "ems": 0.0, "ets": 0.0,
+        "bwu": 0.0, "bmu": 0.0, "btu": 0.0,
+        "bws": 0.0, "bms": 0.0, "bts": 0.0,
+    })
+
+    for r in raw_records:
+        fx  = FX_RATES.get(r.get("COUNTRY_CODE", ""), 1.0)
+        key = (r.get("CATEGORY", ""), r.get("SBU", ""))
+        g   = acc[key]
+        g["sbu"] = r.get("SBU", "")
+
+        g["ewu"] += safe_float(r.get("easter_wm_units",  0))
+        g["emu"] += safe_float(r.get("easter_mkt_units", 0))
+        g["etu"] += safe_float(r.get("easter_tot_units", 0))
+        g["ews"] += safe_float(r.get("easter_wm_sales",  0)) / fx
+        g["ems"] += safe_float(r.get("easter_mkt_sales", 0)) / fx
+        g["ets"] += safe_float(r.get("easter_tot_sales", 0)) / fx
+
+        g["bwu"] += safe_float(r.get("avg_base_wm_units",  0))
+        g["bmu"] += safe_float(r.get("avg_base_mkt_units", 0))
+        g["btu"] += safe_float(r.get("avg_base_tot_units", 0))
+        g["bws"] += safe_float(r.get("avg_base_wm_sales",  0)) / fx
+        g["bms"] += safe_float(r.get("avg_base_mkt_sales", 0)) / fx
+        g["bts"] += safe_float(r.get("avg_base_tot_sales", 0)) / fx
+
+    records = []
+    for (cat, sbu), g in acc.items():
+        e_wm_sh = _sdiv(g["ewu"], g["etu"], 4)
+        b_wm_sh = _sdiv(g["bwu"], g["btu"], 4)
+
+        records.append({
+            "COUNTRY_CODE"         : "CAM",
+            "SBU"                  : sbu,
+            "CATEGORY"             : cat,
+            "easter_wm_units"      : round(g["ewu"], 2),
+            "easter_mkt_units"     : round(g["emu"], 2),
+            "easter_tot_units"     : round(g["etu"], 2),
+            "easter_wm_sales"      : round(g["ews"], 2),
+            "easter_mkt_sales"     : round(g["ems"], 2),
+            "easter_tot_sales"     : round(g["ets"], 2),
+            "avg_base_wm_units"    : round(g["bwu"], 2),
+            "avg_base_mkt_units"   : round(g["bmu"], 2),
+            "avg_base_tot_units"   : round(g["btu"], 2),
+            "avg_base_wm_sales"    : round(g["bws"], 2),
+            "avg_base_mkt_sales"   : round(g["bms"], 2),
+            "avg_base_tot_sales"   : round(g["bts"], 2),
+            # Derived — recomputed from aggregated units/sales
+            "wm_unit_lift"         : _sdiv(g["ewu"], g["bwu"]),
+            "total_unit_lift"      : _sdiv(g["etu"], g["btu"]),
+            "mkt_unit_lift"        : _sdiv(g["emu"], g["bmu"]),
+            "easter_wm_share_pct"  : round(e_wm_sh * 100, 2) if e_wm_sh else None,
+            "base_wm_share_pct"    : round(b_wm_sh * 100, 2) if b_wm_sh else None,
+            "easter_amp"           : _sdiv(g["ems"], g["emu"], 2),  # USD/unit
+            "base_amp"             : _sdiv(g["bms"], g["bmu"], 2),  # USD/unit
+            "easter_wm_price"      : _sdiv(g["ews"], g["ewu"], 2),  # USD/unit
+            "base_wm_price"        : _sdiv(g["bws"], g["bwu"], 2),  # USD/unit
+            "preweek_wm_units"     : None,
+            "preweek_tot_units"    : None,
+        })
+
+    return records
+
+
+def aggregate_cam_upcs(raw_records: list) -> list:
+    """Aggregate per-country raw BQ UPC records into one CAM record per UPC.
+
+    Same logic as aggregate_cam_categories but keyed on (UPC_NBR, CATEGORY, SBU).
+    UPC_DESC is taken from the first country encountered.
+    """
+    from collections import defaultdict
+
+    acc = defaultdict(lambda: {
+        "sbu": "", "desc": "",
+        "ewu": 0.0, "emu": 0.0, "etu": 0.0,
+        "ews": 0.0, "ems": 0.0,
+        "bwu": 0.0, "bmu": 0.0, "btu": 0.0,
+        "bws": 0.0, "bms": 0.0,
+    })
+
+    for r in raw_records:
+        fx  = FX_RATES.get(r.get("COUNTRY_CODE", ""), 1.0)
+        key = (r.get("UPC_NBR", ""), r.get("CATEGORY", ""), r.get("SBU", ""))
+        g   = acc[key]
+        if not g["sbu"]:  g["sbu"]  = r.get("SBU", "")
+        if not g["desc"]: g["desc"] = r.get("UPC_DESC", "")
+
+        g["ewu"] += safe_float(r.get("easter_wm_units",  0))
+        g["emu"] += safe_float(r.get("easter_mkt_units", 0))
+        g["etu"] += safe_float(r.get("easter_tot_units", 0))
+        g["ews"] += safe_float(r.get("easter_wm_sales",  0)) / fx
+        g["ems"] += safe_float(r.get("easter_mkt_sales", 0)) / fx
+
+        g["bwu"] += safe_float(r.get("avg_base_wm_units",  0))
+        g["bmu"] += safe_float(r.get("avg_base_mkt_units", 0))
+        g["btu"] += safe_float(r.get("avg_base_tot_units", 0))
+        g["bws"] += safe_float(r.get("avg_base_wm_sales",  0)) / fx
+        g["bms"] += safe_float(r.get("avg_base_mkt_sales", 0)) / fx
+
+    records = []
+    for (upc, cat, sbu), g in acc.items():
+        e_wm_sh = _sdiv(g["ewu"], g["etu"], 4)
+        b_wm_sh = _sdiv(g["bwu"], g["btu"], 4)
+
+        records.append({
+            "COUNTRY_CODE"         : "CAM",
+            "SBU"                  : sbu,
+            "CATEGORY"             : cat,
+            "UPC_NBR"              : upc,
+            "UPC_DESC"             : g["desc"],
+            "easter_wm_units"      : round(g["ewu"], 2),
+            "easter_mkt_units"     : round(g["emu"], 2),
+            "easter_tot_units"     : round(g["etu"], 2),
+            "easter_wm_sales"      : round(g["ews"], 2),
+            "easter_mkt_sales"     : round(g["ems"], 2),
+            "easter_tot_sales"     : round(g["etu"], 2),   # approx: tot ≈ wm+mkt units
+            "avg_base_wm_units"    : round(g["bwu"], 2),
+            "avg_base_mkt_units"   : round(g["bmu"], 2),
+            "avg_base_tot_units"   : round(g["btu"], 2),
+            "avg_base_wm_sales"    : round(g["bws"], 2),
+            "avg_base_mkt_sales"   : round(g["bms"], 2),
+            "avg_base_tot_sales"   : round(g["bws"] + g["bms"], 2),
+            "wm_unit_lift"         : _sdiv(g["ewu"], g["bwu"]),
+            "total_unit_lift"      : _sdiv(g["etu"], g["btu"]),
+            "mkt_unit_lift"        : _sdiv(g["emu"], g["bmu"]),
+            "easter_wm_share_pct"  : round(e_wm_sh * 100, 2) if e_wm_sh else None,
+            "base_wm_share_pct"    : round(b_wm_sh * 100, 2) if b_wm_sh else None,
+            "easter_amp"           : _sdiv(g["ems"], g["emu"], 2),
+            "base_amp"             : _sdiv(g["bms"], g["bmu"], 2),
+            "easter_wm_price"      : _sdiv(g["ews"], g["ewu"], 2),
+            "base_wm_price"        : _sdiv(g["bws"], g["bwu"], 2),
+        })
+
+    return records
+
+
+# ---------------------------------------------------------------------------
 # Purchase-Role Rules  (keyword matching on CATEGORY string)
 # ---------------------------------------------------------------------------
 
@@ -231,8 +403,22 @@ def main():
         upc_raw = json.load(f)
 
     cat_data, p75_map = process_records(cat_raw)
-    upc_data, _ = process_records(upc_raw)
+    upc_data, _        = process_records(upc_raw)
+
+    # ----- CAM virtual market (all countries aggregated to USD) -----
+    cam_cat_raw  = aggregate_cam_categories(cat_raw)
+    cam_upc_raw  = aggregate_cam_upcs(upc_raw)
+    cam_cat_data, cam_p75 = process_records(cam_cat_raw)
+    cam_upc_data, _       = process_records(cam_upc_raw)
+
+    cat_data = cat_data + cam_cat_data   # CAM appended after country rows
+    upc_data = upc_data + cam_upc_data
+
     summary = compute_summary(cat_data)
+
+    print(f"Categories processed : {len(cat_data) - len(cam_cat_data)} country + {len(cam_cat_data)} CAM")
+    print(f"UPCs processed       : {len(upc_data) - len(cam_upc_data)} country + {len(cam_upc_data)} CAM")
+    print(f"CAM P75 lift         : {cam_p75.get('CAM', 'n/a')}")
 
     # Dump processed outputs
     with open(base_dir / "cat_processed.json", "w", encoding="utf-8") as f:
