@@ -75,8 +75,8 @@ table thead th{{position:sticky;top:0;background:#f1f5f9;z-index:2}}
   </div>
 </header>
 
-<!-- KPI STRIP -->
-<div class="px-6 py-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3" id="kpiStrip"></div>
+<!-- KPI STRIP (por pais + total CAM) -->
+<div class="px-6 py-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3" id="kpiStrip"></div>
 
 <!-- EXECUTIVE INSIGHTS -->
 <div class="px-6 pb-4">
@@ -294,43 +294,152 @@ function fmtLift(v){{ return v===null||v===undefined ? '–' : Number(v).toFixed
 function fmtPct(v){{ return v===null||v===undefined ? '–' : (Number(v)>=0?'+':'')+Number(v).toFixed(1)+'pp'; }}
 function fmtAmpChg(v){{ return v===null||v===undefined ? '–' : (Number(v)>=0?'+':'')+Number(v).toFixed(1)+'%'; }}
 
-// ---- KPI Strip ----
+// ---- KPI Strip — por país ----
 function buildKPIs(){{
-  const s=D.stats;
-  const kpis=[
-    {{label:'Total Categories',val:s.total_cat,sub:'in analysis',color:'text-gray-700'}},
-    {{label:'Seasonal (Cat)',val:s.seasonal_cat+' ('+s.seasonal_pct+'%)',sub:'WM Lift ≥1.5 or P75',color:'text-green-700'}},
-    {{label:'Destination Seasonal',val:s.dest_seasonal,sub:'core seasonal intent',color:'text-blue-700'}},
-    {{label:'Price Wars',val:s.price_wars,sub:'AMP drop >10% + lift',color:'text-red-700'}},
-    {{label:'WM Share Gain',val:s.wm_gain,sub:'categories gained share',color:'text-blue-600'}},
-    {{label:'Market-Wide Growth',val:s.mkt_wide,sub:'full market expanding',color:'text-emerald-700'}},
-    {{label:'Seasonal UPCs',val:s.upc_seasonal,sub:'UPCs with lift ≥1.5',color:'text-purple-700'}},
-    {{label:'Countries',val:'4',sub:'CR · GT · HN · NI',color:'text-gray-600'}},
-  ];
-  document.getElementById('kpiStrip').innerHTML=kpis.map(k=>`
-    <div class="card kpi p-3">
-      <div class="text-xs text-gray-400 font-semibold uppercase tracking-wide">${{k.label}}</div>
-      <div class="text-xl font-black ${{k.color}} mt-0.5">${{k.val}}</div>
-      <div class="text-xs text-gray-400">${{k.sub}}</div>
-    </div>`).join('');
+  const cs = D.country_summary;
+  const CTRY_FULL = {{CR:'Costa Rica',GT:'Guatemala',HN:'Honduras',NI:'Nicaragua'}};
+  const FLAG = {{CR:'🇨🇷',GT:'🇬🇹',HN:'🇭🇳',NI:'🇳🇮'}};
+
+  // Top categoría seasonal por país (mayor WM lift)
+  const topByCtr = {{}};
+  D.cat.forEach(r=>{{
+    if(r.seas==='Yes' && (!topByCtr[r.c] || r.wl > topByCtr[r.c].wl))
+      topByCtr[r.c] = r;
+  }});
+
+  // Tarjeta global CAM (total de todas)
+  const totalCat  = Object.values(cs).reduce((a,v)=>a+v.total,0);
+  const totalSeas  = Object.values(cs).reduce((a,v)=>a+v.seasonal,0);
+  const totalSeasPct = (totalSeas/totalCat*100).toFixed(1);
+  const totalPW   = Object.values(cs).reduce((a,v)=>a+v.price_war,0);
+  const totalGain = Object.values(cs).reduce((a,v)=>a+v.wm_gain,0);
+
+  const camCard = `
+    <div class="card kpi p-3 border-t-4 border-blue-600">
+      <div class="text-xs text-gray-400 font-bold uppercase tracking-wide">🌎 Total CAM</div>
+      <div class="text-2xl font-black text-blue-700 mt-0.5">${{totalCat}} cats</div>
+      <div class="mt-1">
+        <span class="font-bold text-green-700">${{totalSeas}}</span>
+        <span class="text-gray-500 text-xs"> estacionales</span>
+        <span class="ml-1 text-xs font-bold bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">${{totalSeasPct}}%</span>
+      </div>
+      <div class="text-xs text-gray-400 mt-1">${{totalGain}} WM Gain · ${{totalPW}} Price Wars</div>
+    </div>`;
+
+  // Una tarjeta por país
+  const ctrCards = Object.entries(cs).map(([c,v])=>{{
+    const pct = (v.seasonal/v.total*100).toFixed(1);
+    const top = topByCtr[c];
+    const topLabel = top ? top.cat.replace(/^\\d+\\s*-\\s*/,'').slice(0,28) : '—';
+    const topLift  = top ? top.wl.toFixed(1)+'x' : '';
+    return `
+    <div class="card kpi p-3 border-t-4 border-yellow-400">
+      <div class="text-xs text-gray-400 font-bold uppercase tracking-wide">${{FLAG[c]}} ${{CTRY_FULL[c]}}</div>
+      <div class="flex items-baseline gap-2 mt-0.5">
+        <span class="text-xl font-black text-gray-800">${{v.total}}</span>
+        <span class="text-xs text-gray-400">categorías</span>
+      </div>
+      <div class="mt-1">
+        <span class="font-bold text-green-700">${{v.seasonal}}</span>
+        <span class="text-gray-500 text-xs"> estacionales</span>
+        <span class="ml-1 text-xs font-bold bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">${{pct}}%</span>
+      </div>
+      <div class="text-xs text-gray-400 mt-1">${{v.wm_gain}} WM Gain · ${{v.price_war}} Price War</div>
+      <div class="text-xs text-blue-600 font-semibold mt-1 truncate" title="${{top?.cat}}">
+        🏆 ${{topLabel}} ${{topLift}}
+      </div>
+    </div>`;
+  }}).join('');
+
+  document.getElementById('kpiStrip').innerHTML = camCard + ctrCards;
 }}
 
 // ---- Insights ----
 function buildInsights(){{
   const s=D.stats;
+  const cs=D.country_summary;
+  const CTRY_FULL={{CR:'Costa Rica',GT:'Guatemala',HN:'Honduras',NI:'Nicaragua'}};
+  const FLAG={{CR:'🇨🇷',GT:'🇬🇹',HN:'🇭🇳',NI:'🇳🇮'}};
+
+  // Tabla resumen por país
+  const tableRows = Object.entries(cs).map(([c,v])=>{{
+    const pct=(v.seasonal/v.total*100).toFixed(1);
+    const bar=Math.round(parseFloat(pct));
+    return `<tr class="border-b border-gray-100">
+      <td class="py-1.5 px-2 font-bold">${{FLAG[c]}} ${{CTRY_FULL[c]}}</td>
+      <td class="py-1.5 px-2 text-center text-gray-700">${{v.total}}</td>
+      <td class="py-1.5 px-2 text-center font-bold text-green-700">${{v.seasonal}}</td>
+      <td class="py-1.5 px-2">
+        <div class="flex items-center gap-2">
+          <div class="flex-1 bg-gray-100 rounded-full h-2" style="min-width:80px">
+            <div class="bg-green-500 h-2 rounded-full" style="width:${{bar}}%"></div>
+          </div>
+          <span class="text-xs font-bold text-green-700 w-10">${{pct}}%</span>
+        </div>
+      </td>
+      <td class="py-1.5 px-2 text-center text-blue-700 font-semibold">${{v.wm_gain}}</td>
+      <td class="py-1.5 px-2 text-center ${{v.price_war>0?'text-red-700 font-bold':'text-gray-400'}}">${{v.price_war||'—'}}</td>
+    </tr>`;
+  }}).join('');
+
+  // Totales row
+  const tot = Object.values(cs);
+  const tCat  = tot.reduce((a,v)=>a+v.total,0);
+  const tSeas = tot.reduce((a,v)=>a+v.seasonal,0);
+  const tGain = tot.reduce((a,v)=>a+v.wm_gain,0);
+  const tPW   = tot.reduce((a,v)=>a+v.price_war,0);
+  const tPct  = (tSeas/tCat*100).toFixed(1);
+  const tBar  = Math.round(parseFloat(tPct));
+
+  const totRow = `<tr class="bg-blue-50 font-bold border-t-2 border-blue-200">
+    <td class="py-1.5 px-2 text-blue-800">🌎 Total CAM</td>
+    <td class="py-1.5 px-2 text-center text-blue-800">${{tCat}}</td>
+    <td class="py-1.5 px-2 text-center text-green-700">${{tSeas}}</td>
+    <td class="py-1.5 px-2">
+      <div class="flex items-center gap-2">
+        <div class="flex-1 bg-gray-100 rounded-full h-2" style="min-width:80px">
+          <div class="bg-blue-500 h-2 rounded-full" style="width:${{tBar}}%"></div>
+        </div>
+        <span class="text-xs font-bold text-blue-700 w-10">${{tPct}}%</span>
+      </div>
+    </td>
+    <td class="py-1.5 px-2 text-center text-blue-700">${{tGain}}</td>
+    <td class="py-1.5 px-2 text-center ${{tPW>0?'text-red-700':'text-gray-400'}}">${{tPW||'—'}}</td>
+  </tr>`;
+
+  const summaryTable = `
+    <div class="col-span-2 mb-2">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-xs text-gray-400 uppercase tracking-wide border-b-2 border-gray-200">
+            <th class="py-1 px-2 text-left">País</th>
+            <th class="py-1 px-2 text-center">Total Cats</th>
+            <th class="py-1 px-2 text-center">Estacionales</th>
+            <th class="py-1 px-2 text-left">% Estacional</th>
+            <th class="py-1 px-2 text-center">WM Gain</th>
+            <th class="py-1 px-2 text-center">Price Wars</th>
+          </tr>
+        </thead>
+        <tbody>${{tableRows}}${{totRow}}</tbody>
+      </table>
+    </div>`;
+
   const pw=D.cat.filter(r=>/Price War/.test(r.comp));
   const topDest=D.cat.filter(r=>r.role==='Destination'&&r.seas==='Yes').sort((a,b)=>b.wl-a.wl).slice(0,3);
-  const insights=[
-    `🏆 <strong>${{s.seasonal_cat}} of ${{s.total_cat}} categories (${{s.seasonal_pct}}%)</strong> flagged as Easter seasonal across the CAM region.`,
-    `🐟 Top Destination categories: ${{topDest.map(r=>`<strong>[${{r.c}}] ${{r.cat.slice(0,35)}} (${{r.wl.toFixed(1)}}x)</strong>`).join(', ')}}.`,
-    `🗺️ <strong>${{s.mkt_wide}} categories</strong> showed Market-Wide Growth — true Easter demand expansion. <strong>${{s.wm_gain}}</strong> showed WM-specific share gain.`,
-    `⚡ <strong>${{s.price_wars}} Price War / Loss Leader</strong> situations detected (AMP drop >10% with significant unit lift). Monitor margin impact.`,
-    `📊 <strong>18 categories</strong> behaved as Convenience-Driven (AMP stable, high lift) — margin-positive opportunities for planogramming and promo.`,
-    `🌍 Honduras shows the highest WM share gain count (${{D.country_summary.HN.wm_gain}} categories) — strong competitive positioning during Easter.`,
-    `💡 Alcohol (Cocktails, Mixers, Spirits) and Seafood are universal Destination categories across all 4 countries — prime candidates for aggressive promotional pricing.`,
-    `⚠️ Sun Care shows Price War dynamics in CR (AMP -15.7%) — likely loss-leader tactic during beach-season cross-shopping with Easter.`,
+  const convDriven=D.cat.filter(r=>/Convenience/.test(r.comp)&&r.seas==='Yes').length;
+
+  const bullets=[
+    `🐟 Top Destination: ${{topDest.map(r=>`<strong>[${{r.c}}] ${{r.cat.replace(/^\\d+\\s*-\\s*/,'').slice(0,30)}} (${{r.wl.toFixed(1)}}x)</strong>`).join(' · ')}}.`,
+    `🗺️ <strong>${{s.mkt_wide}} categorías</strong> con crecimiento total de mercado. <strong>${{s.wm_gain}}</strong> con ganancia de share exclusiva de Walmart.`,
+    `⚡ <strong>${{s.price_wars}} situaciones de Price War</strong> detectadas (AMP baja >10% + lift alto). Monitorear impacto en margen.`,
+    `🎯 <strong>${{convDriven}} categorías Convenience-Driven</strong> (AMP estable + lift alto) — oportunidades de margen positivo en planograma y promo.`,
+    `💡 Alcohol (Cocktails, Mixers, Spirits) y Mariscos son categorías Destination universales en los 4 países — candidatos prioritarios para precio agresivo.`,
+    `⚠️ Sun Care en CR muestra dinámicas de Price War (AMP -15.7%) — posible táctica de loss-leader en cruce con turismo de playa.`,
   ];
-  document.getElementById('insightsList').innerHTML=insights.map(i=>`<div class="insight-bullet">${{i}}</div>`).join('');
+
+  document.getElementById('insightsList').innerHTML =
+    summaryTable +
+    bullets.map(i=>`<div class="insight-bullet">${{i}}</div>`).join('');
 }}
 
 // ---- ROLE BADGE ----
