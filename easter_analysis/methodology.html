@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metodología — Análisis de Estacionalidad Semana Santa CAM</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+  body { font-family: 'Inter', sans-serif; background:#f8fafc; color:#1e293b; }
+  .section { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); padding:2rem 2.5rem; margin-bottom:1.75rem; }
+  .section-title { font-size:1.25rem; font-weight:800; color:#0053e2; border-bottom:2px solid #e2ecff; padding-bottom:.6rem; margin-bottom:1.25rem; }
+  .formula-box { background:#eff6ff; border-left:4px solid #0053e2; border-radius:6px; padding:1rem 1.25rem; font-family:monospace; font-size:.9rem; color:#1e3a8a; margin:.75rem 0; }
+  .tag { display:inline-block; padding:.15rem .55rem; border-radius:999px; font-size:.7rem; font-weight:700; margin:.1rem; }
+  .tag-blue  { background:#dbeafe; color:#1d4ed8; }
+  .tag-green { background:#dcfce7; color:#15803d; }
+  .tag-red   { background:#fee2e2; color:#b91c1c; }
+  .tag-yel   { background:#fef9c3; color:#854d0e; }
+  .tag-gray  { background:#f1f5f9; color:#475569; }
+  .tag-purp  { background:#ede9fe; color:#6d28d9; }
+  table { width:100%; border-collapse:collapse; font-size:.875rem; }
+  th { background:#f1f5f9; text-align:left; padding:.6rem .85rem; font-weight:700; color:#475569; font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; }
+  td { padding:.6rem .85rem; border-bottom:1px solid #f1f5f9; vertical-align:top; }
+  tr:hover td { background:#f8fafc; }
+  .highlight-row td { background:#eff6ff !important; font-weight:600; color:#1e40af; }
+  .chart-wrap { height:280px; position:relative; }
+  .pill { background:#0053e2; color:#fff; font-weight:800; font-size:.75rem; padding:.25rem .65rem; border-radius:999px; }
+  .kpi-num { font-size:2rem; font-weight:900; line-height:1; }
+  .callout { border-radius:8px; padding:1rem 1.25rem; margin:.5rem 0; }
+  .callout-blue  { background:#eff6ff; border-left:4px solid #3b82f6; }
+  .callout-green { background:#f0fdf4; border-left:4px solid #22c55e; }
+  .callout-red   { background:#fef2f2; border-left:4px solid #ef4444; }
+  .callout-yel   { background:#fffbeb; border-left:4px solid #f59e0b; }
+</style>
+</head>
+<body class="max-w-5xl mx-auto px-4 py-8">
+
+<!-- HEADER -->
+<div class="section" style="background:linear-gradient(135deg,#0053e2 0%,#003fa8 100%);color:#fff;">
+  <div class="flex items-start justify-between">
+    <div>
+      <div class="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Pricing Intelligence · CAM Region</div>
+      <h1 class="text-3xl font-black mb-2">Análisis de Estacionalidad<br>Semana Santa 2025</h1>
+      <p class="text-blue-200 text-sm max-w-xl">Metodología, variables, salidas y análisis detallado de resultados para el modelo de detección de categorías estacionales en Costa Rica, Guatemala, Honduras y Nicaragua.</p>
+    </div>
+    <div class="text-right opacity-80 text-sm">
+      <div class="font-bold text-white text-lg">Semana 202511</div>
+      <div class="text-blue-200">Base: 202501 – 202509</div>
+      <div class="text-blue-200 mt-2">4 países · 110 categorías</div>
+      <div class="text-blue-200">484 observaciones</div>
+    </div>
+  </div>
+</div>
+
+<!-- RESUMEN EJECUTIVO -->
+<div class="section">
+  <div class="section-title">1. Resumen Ejecutivo</div>
+  <p class="text-gray-600 text-sm mb-4">Este análisis identifica las categorías de producto que exhiben comportamiento estacional durante Semana Santa en el mercado CAM (Centroamérica), comparando el desempeño de Walmart vs. el mercado total. El modelo evalúa la estacionalidad mediante el <strong>Unit Lift</strong>, clasifica las categorías según su rol de compra y comportamiento competitivo, y agrega los cuatro países en un mercado virtual CAM usando tipos de cambio a USD.</p>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 my-5">
+    <div class="text-center p-4 bg-blue-50 rounded-xl">
+      <div class="kpi-num text-blue-700">110</div>
+      <div class="text-xs text-gray-500 font-semibold mt-1">Categorías CAM</div>
+      <div class="text-xs text-gray-400">distintas</div>
+    </div>
+    <div class="text-center p-4 bg-green-50 rounded-xl">
+      <div class="kpi-num text-green-700">28</div>
+      <div class="text-xs text-gray-500 font-semibold mt-1">Estacionales CAM</div>
+      <div class="text-xs text-gray-400">25.5% del portafolio</div>
+    </div>
+    <div class="text-center p-4 bg-purple-50 rounded-xl">
+      <div class="kpi-num text-purple-700">33</div>
+      <div class="text-xs text-gray-500 font-semibold mt-1">Destination Seas.</div>
+      <div class="text-xs text-gray-400">todos los países</div>
+    </div>
+    <div class="text-center p-4 bg-red-50 rounded-xl">
+      <div class="kpi-num text-red-700">9</div>
+      <div class="text-xs text-gray-500 font-semibold mt-1">Price Wars</div>
+      <div class="text-xs text-gray-400">nivel país</div>
+    </div>
+  </div>
+
+  <div class="callout callout-blue text-sm">
+    <strong>Hallazgo principal:</strong> Aproximadamente el 25% de las categorías del portafolio CAM muestran estacionalidad significativa en Semana Santa, con Mariscos y Alcohol como categorías Destination universales en los cuatro países. Honduras lidera en ganancia de share de Walmart (21 categorías), mientras Costa Rica concentra los principales eventos de Price War.
+  </div>
+</div>
+
+<!-- FUENTE DE DATOS -->
+<div class="section">
+  <div class="section-title">2. Fuente de Datos</div>
+
+  <table style="margin-bottom:1rem;">
+    <tr><th colspan="2">Tabla BigQuery</th></tr>
+    <tr><td class="font-mono text-blue-700 font-bold text-sm" colspan="2">wmt-k1-cons-data-users.k1_adhoc_tables.prcng_info_cam_temp_market_trend</td></tr>
+  </table>
+
+  <p class="text-sm text-gray-600 mb-3">La tabla contiene datos semanales de ventas y unidades de Walmart y del mercado total por UPC y categoría, para los cuatro países CAM. A continuación se describen todas las columnas de entrada:</p>
+
+  <table>
+    <thead><tr><th>Columna</th><th>Tipo</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td class="font-mono font-bold">COUNTRY_CODE</td><td><span class="tag tag-gray">STRING</span></td><td>Código del país: CR, GT, HN, NI</td></tr>
+      <tr><td class="font-mono font-bold">SBU</td><td><span class="tag tag-gray">STRING</span></td><td>División del producto (Strategic Business Unit)</td></tr>
+      <tr><td class="font-mono font-bold">DEPT_CAT_NBR_DESC_COMB</td><td><span class="tag tag-gray">STRING</span></td><td>Categoría a la que pertenece el UPC. Alias: CATEGORY</td></tr>
+      <tr><td class="font-mono font-bold">UPC_NBR</td><td><span class="tag tag-gray">STRING</span></td><td>Código UPC del producto</td></tr>
+      <tr><td class="font-mono font-bold">UPC_DESC</td><td><span class="tag tag-gray">STRING</span></td><td>Descripción del producto</td></tr>
+      <tr><td class="font-mono font-bold">WM_YEAR_WEEK_NBR</td><td><span class="tag tag-gray">INTEGER</span></td><td>Semana en formato Walmart (YYYYWW)</td></tr>
+      <tr><td class="font-mono font-bold">ANIO</td><td><span class="tag tag-gray">INTEGER</span></td><td>Año del período</td></tr>
+      <tr><td class="font-mono font-bold">MES</td><td><span class="tag tag-gray">INTEGER</span></td><td>Mes del período</td></tr>
+      <tr><td class="font-mono font-bold">TRIMESTRE</td><td><span class="tag tag-gray">INTEGER</span></td><td>Trimestre del período</td></tr>
+      <tr><td class="font-mono font-bold">WALMART_UNITS</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Unidades vendidas por Walmart en la semana</td></tr>
+      <tr><td class="font-mono font-bold">WALMART_SALES</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Ventas Walmart en moneda local</td></tr>
+      <tr><td class="font-mono font-bold">MARKET_UNITS</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Unidades vendidas por el mercado <em>sin</em> Walmart</td></tr>
+      <tr><td class="font-mono font-bold">MARKET_SALES</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Ventas del mercado (sin Walmart) en moneda local</td></tr>
+      <tr><td class="font-mono font-bold">TOTAL_UNITS</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Total de unidades vendidas (Walmart + Mercado)</td></tr>
+      <tr><td class="font-mono font-bold">TOTAL_SALES</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Total de ventas en moneda local</td></tr>
+      <tr><td class="font-mono font-bold">PESO</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Peso del UPC basado en unidades totales</td></tr>
+      <tr><td class="font-mono font-bold">FACTOR</td><td><span class="tag tag-green">NUMERIC</span></td><td>Competitividad = (1 − Precio WM / Precio Mercado) × Peso</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- PERIODO DE ANALISIS -->
+<div class="section">
+  <div class="section-title">3. Período de Análisis</div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <h3 class="font-bold text-gray-800 mb-2">Semana Objetivo (Easter Week)</h3>
+      <div class="formula-box">Semana Walmart: <strong>202511</strong><br>Semana anterior excluida: 202510<br>(excluida por efecto pre-compra)</div>
+      <p class="text-sm text-gray-600">La semana 202511 corresponde a la semana de Semana Santa 2025. Se excluye la semana previa (202510) del período base para evitar contaminar el baseline con el efecto de compra anticipada.</p>
+    </div>
+    <div>
+      <h3 class="font-bold text-gray-800 mb-2">Período Base (Referencia)</h3>
+      <div class="formula-box">Semanas: <strong>202501 – 202509</strong><br>N = 9 semanas<br>Promedio semanal = Suma / 9</div>
+      <p class="text-sm text-gray-600">Las primeras 9 semanas del año sirven como referencia "normal" del negocio. Se calcula el promedio semanal para compararlo con la semana objetivo sin la distorsión estacional.</p>
+    </div>
+  </div>
+</div>
+
+<!-- METODOLOGIA -->
+<div class="section">
+  <div class="section-title">4. Metodología Detallada</div>
+
+  <h3 class="font-bold text-gray-800 mt-1 mb-1">4.1 WM Unit Lift</h3>
+  <p class="text-sm text-gray-600 mb-2">Métrica principal del análisis. Mide cuántas veces mayor fue la venta de Walmart en la semana objetivo vs. su promedio semanal del período base.</p>
+  <div class="formula-box">
+    WM Unit Lift = <strong>Easter WM Units</strong> / <strong>Avg Base WM Units/semana</strong>
+  </div>
+  <p class="text-sm text-gray-600 mt-2">Un lift de <strong>1.0</strong> indica comportamiento normal. Un lift de <strong>2.0</strong> significa que Walmart vendió el doble de lo usual. De manera análoga se calculan <em>Total Unit Lift</em> y <em>Market Unit Lift</em> para el mercado completo y el mercado sin Walmart respectivamente.</p>
+
+  <h3 class="font-bold text-gray-800 mt-5 mb-1">4.2 Umbral de Estacionalidad (P75)</h3>
+  <p class="text-sm text-gray-600 mb-2">Una categoría se clasifica como <strong>estacional</strong> si cumple al menos una de estas condiciones:</p>
+  <div class="formula-box">
+    IS_SEASONAL = "Yes" si:<br>
+    &nbsp;&nbsp; WM Unit Lift ≥ 1.5  &nbsp;&nbsp;<em>(regla absoluta)</em><br>
+    &nbsp;&nbsp;  <strong>O</strong>  WM Unit Lift ≥ P75 del país  &nbsp;&nbsp;<em>(regla relativa)</em>
+  </div>
+  <p class="text-sm text-gray-600 mt-2">El P75 se calcula por separado para cada país (y para CAM) como el percentil 75 del WM Unit Lift de todas las categorías. Esto captura categorías que son estacionales <em>en relación al contexto local</em>, aunque no alcancen el umbral absoluto de 1.5.</p>
+
+  <div class="grid grid-cols-5 gap-2 mt-3">
+    <div class="text-center p-3 bg-gray-50 rounded-lg"><div class="font-black text-blue-700">CAM</div><div class="font-bold text-sm mt-1">1.24</div><div class="text-xs text-gray-400">P75</div></div>
+    <div class="text-center p-3 bg-gray-50 rounded-lg"><div class="font-black text-gray-700">🇨🇷 CR</div><div class="font-bold text-sm mt-1">1.28</div><div class="text-xs text-gray-400">P75</div></div>
+    <div class="text-center p-3 bg-gray-50 rounded-lg"><div class="font-black text-gray-700">🇬🇹 GT</div><div class="font-bold text-sm mt-1">1.25</div><div class="text-xs text-gray-400">P75</div></div>
+    <div class="text-center p-3 bg-gray-50 rounded-lg"><div class="font-black text-gray-700">🇭🇳 HN</div><div class="font-bold text-sm mt-1">1.19</div><div class="text-xs text-gray-400">P75</div></div>
+    <div class="text-center p-3 bg-gray-50 rounded-lg"><div class="font-black text-gray-700">🇳🇮 NI</div><div class="font-bold text-sm mt-1">1.27</div><div class="text-xs text-gray-400">P75</div></div>
+  </div>
+
+  <h3 class="font-bold text-gray-800 mt-6 mb-1">4.3 AMP — Average Market Price</h3>
+  <p class="text-sm text-gray-600 mb-2">Precio promedio del mercado (excluye Walmart) por unidad. Se usa como referencia del precio de mercado para detectar cambios de precio durante la temporada.</p>
+  <div class="formula-box">
+    AMP = Market Sales (moneda local) / Market Units<br>
+    AMP Change % = (Easter AMP − Base AMP) / |Base AMP| × 100
+  </div>
+  <p class="text-sm text-gray-600 mt-2">Cuando el AMP cae durante la semana estacional, indica que el mercado bajó precios. Combinado con el lift, esto permite identificar si el incremento en ventas es orgánico (demanda real) o forzado por precio.</p>
+
+  <h3 class="font-bold text-gray-800 mt-6 mb-1">4.4 WM Share</h3>
+  <div class="formula-box">
+    Easter WM Share % = Easter WM Units / Easter Total Units × 100<br>
+    Base WM Share %   = Avg Base WM Units / Avg Base Total Units × 100<br>
+    Share Delta (pp)  = Easter WM Share % − Base WM Share %
+  </div>
+  <p class="text-sm text-gray-600 mt-2">Mide si Walmart ganó o perdió participación de mercado durante Semana Santa. Un delta positivo indica ganancia de share.</p>
+
+  <h3 class="font-bold text-gray-800 mt-6 mb-1">4.5 Rol de Compra (Purchase Role)</h3>
+  <p class="text-sm text-gray-600 mb-3">Clasificación basada en el nombre de la categoría mediante keyword matching. Define la intención de compra del consumidor:</p>
+  <table>
+    <thead><tr><th>Rol</th><th>Descripción</th><th>Ejemplos de Categorías</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag tag-blue">Destination</span></td><td>El consumidor <em>va</em> al supermercado específicamente por estas categorías. Son la razón principal del viaje de compra en Semana Santa.</td><td>Mariscos, Alcohol, Sun Care, Cerveza, Vinos</td></tr>
+      <tr><td><span class="tag tag-yel">Impulse / Convenience</span></td><td>Compras no planificadas o de conveniencia, aprovechando la visita al supermercado.</td><td>Snacks, Jugos, Bebidas carbonatadas, Galletas</td></tr>
+      <tr><td><span class="tag tag-green">Complementary</span></td><td>Productos que acompañan las compras Destination. Se compran por asociación.</td><td>Condimentos, Utensilios desechables, Carbón, Limpiadores</td></tr>
+      <tr><td><span class="tag tag-gray">Other</span></td><td>Categorías que no encajan en los roles anteriores.</td><td>Cuidado personal, Farmacia, Hogar</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="font-bold text-gray-800 mt-6 mb-1">4.6 Comportamiento Competitivo</h3>
+  <p class="text-sm text-gray-600 mb-3">Clasifica la dinámica de precios durante Semana Santa. Se basa en AMP Change % y WM Unit Lift:</p>
+  <table>
+    <thead><tr><th>Comportamiento</th><th>Condición</th><th>Interpretación</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag tag-red">Price War / Loss Leader</span></td><td>AMP Change &lt; −10% <strong>Y</strong> WM Lift ≥ 1.5</td><td>El mercado bajó precios agresivamente y Walmart también. Posible pérdida de margen por competencia de precio.</td></tr>
+      <tr><td><span class="tag tag-green">Convenience-Driven</span></td><td>AMP Change entre −5% y +5% <strong>Y</strong> WM Lift ≥ 1.5</td><td>Alta demanda con precios estables. Margen positivo — la categoría creció por demanda real, no por precio.</td></tr>
+      <tr><td><span class="tag tag-purp">Aggressive Pricing</span></td><td>AMP Change &lt; −10% con bajo lift</td><td>El mercado bajó precios pero el volumen no respondió. Posible sobrestock o mal timing.</td></tr>
+      <tr><td><span class="tag tag-yel">Price Inflation</span></td><td>AMP Change &gt; +10%</td><td>El mercado subió precios durante la temporada. Puede indicar escasez o comportamiento inflacionario.</td></tr>
+      <tr><td><span class="tag tag-gray">Stable / Mixed</span></td><td>Resto de casos</td><td>Sin patrones extremos. Comportamiento moderado.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="font-bold text-gray-800 mt-6 mb-1">4.7 Market Matrix</h3>
+  <p class="text-sm text-gray-600 mb-3">Relaciona el crecimiento de Walmart con el del mercado total para entender si el incremento es estructural o específico de Walmart:</p>
+  <table>
+    <thead><tr><th>Clasificación</th><th>WM Lift</th><th>Market Lift</th><th>Significado</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag tag-green">Market-Wide Growth</span></td><td>≥ 1.1</td><td>≥ 1.1</td><td>Todo el mercado crece. Semana Santa mueve la categoría en general.</td></tr>
+      <tr><td><span class="tag tag-blue">Walmart Share Gain</span></td><td>≥ 1.1</td><td>&lt; 1.1</td><td>Walmart crece pero el mercado no. Walmart ganó share vs. competencia.</td></tr>
+      <tr><td><span class="tag tag-red">Walmart Share Loss</span></td><td>&lt; 0.95</td><td>≥ 1.1</td><td>Walmart pierde mientras el mercado gana. Competencia captó la demanda estacional.</td></tr>
+      <tr><td><span class="tag tag-gray">Market Contraction</span></td><td>&lt; 0.95</td><td>&lt; 0.95</td><td>Todo el mercado cae. Categoría en declive o sin estacionalidad real.</td></tr>
+      <tr><td><span class="tag tag-gray">Flat / Mixed</span></td><td colspan="2">Resto de casos</td><td>Sin tendencia clara.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="font-bold text-gray-800 mt-6 mb-1">4.8 Agregación CAM y Tipos de Cambio</h3>
+  <p class="text-sm text-gray-600 mb-2">Para tratar la región CAM como un solo mercado, se agregan los cuatro países convirtiendo todas las ventas a USD antes de sumar. Las unidades se suman directamente (ya son comparables). Los tipos de cambio utilizados son:</p>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 my-3">
+    <div class="bg-gray-50 rounded-lg p-3 text-center"><div class="text-lg">🇨🇷</div><div class="font-bold">CR → USD</div><div class="font-mono text-blue-700 font-bold">÷ 507.00</div><div class="text-xs text-gray-400">CRC/USD</div></div>
+    <div class="bg-gray-50 rounded-lg p-3 text-center"><div class="text-lg">🇬🇹</div><div class="font-bold">GT → USD</div><div class="font-mono text-blue-700 font-bold">÷ 7.55</div><div class="text-xs text-gray-400">GTQ/USD</div></div>
+    <div class="bg-gray-50 rounded-lg p-3 text-center"><div class="text-lg">🇭🇳</div><div class="font-bold">HN → USD</div><div class="font-mono text-blue-700 font-bold">÷ 24.68</div><div class="text-xs text-gray-400">HNL/USD</div></div>
+    <div class="bg-gray-50 rounded-lg p-3 text-center"><div class="text-lg">🇳🇮</div><div class="font-bold">NI → USD</div><div class="font-mono text-blue-700 font-bold">÷ 36.63</div><div class="text-xs text-gray-400">NIO/USD</div></div>
+  </div>
+  <div class="formula-box">
+    CAM Easter WM Units  = Σ (WM Units por país)          &nbsp;&nbsp;<em>← suma directa</em><br>
+    CAM Easter WM Sales  = Σ (WM Sales<sub>país</sub> / TC<sub>país</sub>)  &nbsp;&nbsp;<em>← conversión a USD</em><br>
+    CAM Avg Base WM Units = Σ (Avg Base WM Units por país)  &nbsp;&nbsp;<em>← suma de promedios semanales</em><br>
+    CAM WM Lift = CAM Easter WM Units / CAM Avg Base WM Units
+  </div>
+  <p class="text-sm text-gray-600 mt-2">El P75 de CAM se calcula independientemente sobre las 110 categorías del mercado agregado. Esto significa que el umbral relativo de estacionalidad refleja la distribución específica del mercado regional.</p>
+</div>
+
+<!-- VARIABLES DE SALIDA -->
+<div class="section">
+  <div class="section-title">5. Variables de Salida (Flags y Métricas Calculadas)</div>
+  <table>
+    <thead><tr><th>Variable</th><th>Tipo</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td class="font-mono font-bold">easter_wm_units</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Unidades Walmart en la semana objetivo</td></tr>
+      <tr><td class="font-mono font-bold">easter_mkt_units</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Unidades del mercado (sin Walmart) en la semana objetivo</td></tr>
+      <tr><td class="font-mono font-bold">easter_tot_units</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Unidades totales en la semana objetivo</td></tr>
+      <tr><td class="font-mono font-bold">avg_base_wm_units</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Promedio semanal de unidades WM en el período base</td></tr>
+      <tr><td class="font-mono font-bold">avg_base_mkt_units</td><td><span class="tag tag-blue">NUMERIC</span></td><td>Promedio semanal de unidades de mercado en el período base</td></tr>
+      <tr><td class="font-mono font-bold">wm_unit_lift</td><td><span class="tag tag-green">RATIO</span></td><td>Lift de unidades Walmart = Easter / Base promedio</td></tr>
+      <tr><td class="font-mono font-bold">total_unit_lift</td><td><span class="tag tag-green">RATIO</span></td><td>Lift de unidades totales del mercado</td></tr>
+      <tr><td class="font-mono font-bold">mkt_unit_lift</td><td><span class="tag tag-green">RATIO</span></td><td>Lift de unidades del mercado sin Walmart</td></tr>
+      <tr><td class="font-mono font-bold">easter_wm_share_pct</td><td><span class="tag tag-blue">%</span></td><td>Share de Walmart en unidades durante Semana Santa</td></tr>
+      <tr><td class="font-mono font-bold">base_wm_share_pct</td><td><span class="tag tag-blue">%</span></td><td>Share de Walmart en unidades en el período base</td></tr>
+      <tr><td class="font-mono font-bold">share_delta_pp</td><td><span class="tag tag-green">pp</span></td><td>Ganancia/pérdida de share en puntos porcentuales</td></tr>
+      <tr><td class="font-mono font-bold">easter_amp</td><td><span class="tag tag-blue">PRICE</span></td><td>Precio promedio de mercado en Semana Santa (USD en CAM)</td></tr>
+      <tr><td class="font-mono font-bold">base_amp</td><td><span class="tag tag-blue">PRICE</span></td><td>Precio promedio de mercado en el período base (USD en CAM)</td></tr>
+      <tr><td class="font-mono font-bold">amp_chg_pct</td><td><span class="tag tag-green">%</span></td><td>Cambio porcentual del AMP. Negativo = mercado bajó precios</td></tr>
+      <tr><td class="font-mono font-bold">easter_wm_price</td><td><span class="tag tag-blue">PRICE</span></td><td>Precio promedio Walmart en Semana Santa</td></tr>
+      <tr><td class="font-mono font-bold">base_wm_price</td><td><span class="tag tag-blue">PRICE</span></td><td>Precio promedio Walmart en el período base</td></tr>
+      <tr><td class="font-mono font-bold">wm_price_chg_pct</td><td><span class="tag tag-green">%</span></td><td>Cambio porcentual del precio Walmart</td></tr>
+      <tr><td class="font-mono font-bold">p75_country_lift</td><td><span class="tag tag-yel">PERCENTILE</span></td><td>P75 del WM Unit Lift en el país (o CAM). Umbral relativo de estacionalidad</td></tr>
+      <tr><td class="font-mono font-bold">IS_EASTER_SEASONAL</td><td><span class="tag tag-green">Yes/No</span></td><td><strong>Flag principal:</strong> ¿La categoría es estacional en Semana Santa?</td></tr>
+      <tr><td class="font-mono font-bold">PURCHASE_ROLE</td><td><span class="tag tag-blue">STRING</span></td><td>Rol de compra: Destination / Impulse-Convenience / Complementary / Other</td></tr>
+      <tr><td class="font-mono font-bold">COMPETITIVE_BEHAVIOR</td><td><span class="tag tag-blue">STRING</span></td><td>Comportamiento competitivo de precios: Price War / Convenience-Driven / etc.</td></tr>
+      <tr><td class="font-mono font-bold">MARKET_MATRIX</td><td><span class="tag tag-blue">STRING</span></td><td>Relación de crecimiento WM vs. Mercado: Market-Wide Growth / WM Share Gain / etc.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ANALISIS DE RESULTADOS -->
+<div class="section">
+  <div class="section-title">6. Análisis Detallado de Resultados</div>
+
+  <!-- 6.1 Por país -->
+  <h3 class="font-bold text-gray-800 mb-3">6.1 Estacionalidad por País</h3>
+  <div class="chart-wrap mb-4"><canvas id="chartCountry"></canvas></div>
+  <table class="mb-4">
+    <thead><tr><th>País / Mercado</th><th>Total Cats</th><th>Estacionales</th><th>% Estacional</th><th>WM Gain</th><th>Price Wars</th><th>Interpretación</th></tr></thead>
+    <tbody>
+      <tr class="highlight-row"><td>🌎 CAM (USD)</td><td>110</td><td>28</td><td>25.5%</td><td>11</td><td>4</td><td>Mercado virtual agregado. El 25.5% refleja categorías con estacionalidad <em>regional</em> robusta.</td></tr>
+      <tr><td>🇨🇷 Costa Rica</td><td>101</td><td>26</td><td>25.7%</td><td>7</td><td>4</td><td>Mayor cantidad de Price Wars. Mercado maduro con alta competencia de precio.</td></tr>
+      <tr><td>🇬🇹 Guatemala</td><td>93</td><td>24</td><td>25.8%</td><td>9</td><td>1</td><td>% estacional similar al promedio. Balance entre demanda y precio estable.</td></tr>
+      <tr><td>🇭🇳 Honduras</td><td>89</td><td>23</td><td>25.8%</td><td>21</td><td>0</td><td><strong>Líder en WM Share Gain (21 cats).</strong> Walmart capturó demanda estacional sin ceder precio.</td></tr>
+      <tr><td>🇳🇮 Nicaragua</td><td>91</td><td>23</td><td>25.3%</td><td>17</td><td>0</td><td>Segundo en WM Gain (17 cats). Sin Price Wars — crecimiento sin guerras de precio.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-blue text-sm mb-4">
+    <strong>Observación CAM vs. países:</strong> Las 28 categorías estacionales en CAM son menores que la suma de los países individuales (96 = 26+24+23+23) porque el mercado agregado diluye productos que solo son estacionales en <em>un</em> país. Solo las categorías con momentum regional consistente sobreviven el umbral CAM.
+  </div>
+
+  <!-- 6.2 Destinos estacionales -->
+  <h3 class="font-bold text-gray-800 mt-6 mb-3">6.2 Categorías Destination Estacionales</h3>
+  <p class="text-sm text-gray-600 mb-3">Las categorías Destination son el motor del viaje de compra en Semana Santa. Identificarlas correctamente permite focalizar estrategias de precio, espacio y promoción.</p>
+  <table class="mb-4">
+    <thead><tr><th>País</th><th>Categoría</th><th>WM Lift</th><th>Market Matrix</th><th>AMP Chg %</th></tr></thead>
+    <tbody>
+      <tr><td>🇨🇷 CR</td><td>SEAFOOD-SHELLFISH-D92</td><td class="font-bold text-green-700">3.56x</td><td><span class="tag tag-green">Mkt-Wide Growth</span></td><td>+2.1%</td></tr>
+      <tr class="highlight-row"><td>🌎 CAM</td><td>SEAFOOD-SHELLFISH-D92</td><td class="font-bold text-blue-700">3.56x</td><td><span class="tag tag-green">Mkt-Wide Growth</span></td><td>—</td></tr>
+      <tr><td>🇭🇳 HN</td><td>BEVERAGE ALCOHOL - MIXERS D96</td><td class="font-bold text-green-700">3.30x</td><td><span class="tag tag-green">Mkt-Wide Growth</span></td><td>—</td></tr>
+      <tr><td>🇳🇮 NI</td><td>BEVERAGE ALCOHOL - COCKTAIL D96</td><td class="font-bold text-green-700">3.19x</td><td><span class="tag tag-green">Mkt-Wide Growth</span></td><td>—</td></tr>
+      <tr><td>🇳🇮 NI</td><td>SUN CARE D46</td><td class="font-bold text-green-700">2.91x</td><td><span class="tag tag-green">Mkt-Wide Growth</span></td><td>—</td></tr>
+      <tr><td>🇳🇮 NI</td><td>BEVERAGE ALCOHOL - LIQUEURS D96</td><td class="font-bold text-green-700">2.85x</td><td><span class="tag tag-green">Mkt-Wide Growth</span></td><td>—</td></tr>
+      <tr><td>🇭🇳 HN</td><td>BEVERAGE ALCOHOL - COCKTAIL D96</td><td class="font-bold text-green-700">2.66x</td><td><span class="tag tag-green">Mkt-Wide Growth</span></td><td>—</td></tr>
+      <tr><td>🇳🇮 NI</td><td>SEAFOOD-FISH-D92</td><td class="font-bold text-green-700">2.49x</td><td><span class="tag tag-green">Mkt-Wide Growth</span></td><td>—</td></tr>
+      <tr><td>🇬🇹 GT</td><td>BEVERAGE ALCOHOL - COCKTAIL D96</td><td class="font-bold text-green-700">2.31x</td><td><span class="tag tag-green">Mkt-Wide Growth</span></td><td>—</td></tr>
+      <tr class="highlight-row"><td>🌎 CAM</td><td>SUN CARE D46</td><td class="font-bold text-blue-700">2.10x</td><td><span class="tag tag-green">Mkt-Wide Growth</span></td><td>—</td></tr>
+    </tbody>
+  </table>
+  <div class="callout callout-green text-sm">
+    <strong>Insight clave:</strong> Mariscos (Seafood) y todas las categorías de Alcohol son universalmente Destination en los 4 países. El lift es <em>de mercado completo</em> (Market-Wide Growth), no exclusivo de Walmart, lo que confirma la demanda estacional real. Estas son las categorías donde el precio agresivo tiene mayor retorno en tráfico.
+  </div>
+
+  <!-- 6.3 Price Wars -->
+  <h3 class="font-bold text-gray-800 mt-6 mb-3">6.3 Price Wars y Situaciones de Loss Leader</h3>
+  <p class="text-sm text-gray-600 mb-3">Se detectaron 9 situaciones de Price War a nivel país (y 4 en CAM agregado). Estas ocurren cuando el mercado bajó precios >10% y simultáneamente el lift fue ≥ 1.5x.</p>
+  <table class="mb-4">
+    <thead><tr><th>País</th><th>Categoría</th><th>AMP Chg %</th><th>WM Lift</th><th>Riesgo de Margen</th></tr></thead>
+    <tbody>
+      <tr><td>🇨🇷 CR</td><td>LAUNDRY FABRIC CARE D13</td><td class="font-bold text-red-600">−35.1%</td><td class="font-bold">26.5x</td><td><span class="tag tag-red">MUY ALTO</span></td></tr>
+      <tr><td>🇨🇷 CR</td><td>SUN CARE D46</td><td class="font-bold text-red-600">−15.7%</td><td class="font-bold">1.95x</td><td><span class="tag tag-red">ALTO</span></td></tr>
+      <tr><td>🇨🇷 CR</td><td>BEVERAGE ALCOHOL - BEER D96</td><td class="font-bold text-red-600">−10.6%</td><td class="font-bold">1.78x</td><td><span class="tag tag-yel">MEDIO</span></td></tr>
+      <tr><td>🇨🇷 CR</td><td>PREPARED FOOD-SIDE DISH-D92</td><td class="font-bold text-red-600">−10.5%</td><td class="font-bold">2.55x</td><td><span class="tag tag-yel">MEDIO</span></td></tr>
+      <tr><td>🇬🇹 GT</td><td>BEVERAGE ALCOHOL - MIXERS D96</td><td class="font-bold text-red-600">−10.4%</td><td class="font-bold">2.22x</td><td><span class="tag tag-yel">MEDIO</span></td></tr>
+    </tbody>
+  </table>
+  <div class="callout callout-red text-sm">
+    <strong>Caso crítico — CR Laundry Fabric Care:</strong> Un AMP cayó −35.1% con un lift de 26.5x. Este es el caso más extremo del análisis y requiere investigación: ¿fue una promoción deliberada de loss-leader? ¿Error de datos? ¿Entrada de un competidor con precio muy bajo? El volumen masivo con precio mínimo genera impacto severo en margen.
+  </div>
+  <div class="callout callout-yel text-sm mt-3">
+    <strong>Sun Care en CR:</strong> AMP −15.7% con lift 1.95x. Posible táctica de loss-leader por la coincidencia de Semana Santa con turismo de playa. Walmart podría estar usando Sun Care como categoría de tráfico en temporada vacacional.
+  </div>
+
+  <!-- 6.4 Market Matrix -->
+  <h3 class="font-bold text-gray-800 mt-6 mb-3">6.4 Market Matrix — Distribución</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div><div class="chart-wrap"><canvas id="chartMatrix"></canvas></div></div>
+    <div>
+      <table>
+        <thead><tr><th>Clasificación</th><th>Total</th><th>% del Total</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag tag-green">Market-Wide Growth</span></td><td class="font-bold">173</td><td>35.7%</td></tr>
+          <tr><td><span class="tag tag-gray">Flat / Mixed</span></td><td class="font-bold">197</td><td>40.7%</td></tr>
+          <tr><td><span class="tag tag-blue">WM Share Gain</span></td><td class="font-bold">65</td><td>13.4%</td></tr>
+          <tr><td><span class="tag tag-gray">Market Contraction</span></td><td class="font-bold">34</td><td>7.0%</td></tr>
+          <tr><td><span class="tag tag-red">WM Share Loss</span></td><td class="font-bold">15</td><td>3.1%</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-green text-sm mt-4">
+        El 35.7% de las categorías muestra crecimiento real de mercado (Market-Wide Growth), confirmando que Semana Santa es una temporada de expansión genuina. El 13.4% adicional creció exclusivamente en Walmart (WM Share Gain), indicando ventaja competitiva propia.
+      </div>
+    </div>
+  </div>
+
+  <!-- 6.5 Comportamiento Competitivo -->
+  <h3 class="font-bold text-gray-800 mt-6 mb-3">6.5 Comportamiento Competitivo — Distribución</h3>
+  <div class="chart-wrap mb-4"><canvas id="chartBehavior"></canvas></div>
+  <div class="callout callout-blue text-sm">
+    La mayoría del portafolio (82%) muestra comportamiento <em>Stable/Mixed</em>, lo que es normal. Las categorías de acción son las 22 Convenience-Driven (oportunidades de margen alto) y las 9 Price Wars (riesgo de erosión de margen).
+  </div>
+</div>
+
+<!-- IMPLICACIONES -->
+<div class="section">
+  <div class="section-title">7. Implicaciones Estratégicas y Recomendaciones</div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="callout callout-green">
+      <div class="font-bold text-green-800 mb-1">🎯 Categorías para precio agresivo</div>
+      <p class="text-sm text-gray-700">Mariscos, Cocktails, Mixers y Licores son Destination con Market-Wide Growth. Precio agresivo genera tráfico sin afectar percepción de margen porque todo el mercado sube.</p>
+    </div>
+    <div class="callout callout-blue">
+      <div class="font-bold text-blue-800 mb-1">💰 Categorías para optimizar margen</div>
+      <p class="text-sm text-gray-700">Las 22 categorías Convenience-Driven (AMP estable + lift alto) son oportunidades de margen positivo. No requieren reducción de precio para crecer en Semana Santa.</p>
+    </div>
+    <div class="callout callout-red">
+      <div class="font-bold text-red-800 mb-1">⚠️ Monitoreo urgente: Price Wars</div>
+      <p class="text-sm text-gray-700">CR requiere análisis urgente de Laundry Fabric Care (AMP −35%). Honduras y Nicaragua no presentan Price Wars — modelo saludable de crecimiento sin guerra de precio.</p>
+    </div>
+    <div class="callout callout-yel">
+      <div class="font-bold text-yellow-800 mb-1">🌎 Estrategia regional CAM</div>
+      <p class="text-sm text-gray-700">Las 28 categorías estacionales en CAM son las más robustas para una estrategia regional unificada. Una sola palanca de precio o promo en estas categorías impacta los 4 mercados.</p>
+    </div>
+    <div class="callout callout-blue" style="grid-column:1/-1">
+      <div class="font-bold text-blue-800 mb-1">🏆 Honduras — caso de éxito</div>
+      <p class="text-sm text-gray-700">Con 21 categorías en WM Share Gain y 0 Price Wars, Honduras demuestra el modelo ideal: Walmart captura la demanda estacional <strong>sin ceder precio</strong>. Este modelo debería analizarse como referencia para replicar en CR y GT, donde la guerra de precio erosiona márgenes innecesariamente.</p>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="section text-center" style="background:#f8fafc;">
+  <div class="text-xs text-gray-400">Generado el 25 de marzo de 2026 · Pricing Intelligence CAM · Walmart</div>
+  <div class="text-xs text-gray-300 mt-1">Pipeline: BigQuery → process.py → build_report.py → render_html.py</div>
+  <div class="text-xs text-gray-300">Tabla fuente: wmt-k1-cons-data-users.k1_adhoc_tables.prcng_info_cam_temp_market_trend</div>
+</div>
+
+<script>
+// Chart 1 — % Estacional por país
+new Chart(document.getElementById('chartCountry'), {
+  type: 'bar',
+  data: {
+    labels: ['🌎 CAM','🇨🇷 CR','🇬🇹 GT','🇭🇳 HN','🇳🇮 NI'],
+    datasets: [
+      { label:'Estacionales', data:[28,26,24,23,23], backgroundColor:'#22c55e', borderRadius:4 },
+      { label:'No estacionales', data:[82,75,69,66,68], backgroundColor:'#e2e8f0', borderRadius:4 }
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ position:'top' }, title:{ display:true, text:'Categorías Estacionales vs No Estacionales por País', font:{size:13,weight:'bold'} } },
+    scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } }
+  }
+});
+
+// Chart 2 — Market Matrix
+new Chart(document.getElementById('chartMatrix'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Mkt-Wide Growth','Flat / Mixed','WM Share Gain','Contraction','WM Share Loss'],
+    datasets:[{ data:[173,197,65,34,15],
+      backgroundColor:['#22c55e','#94a3b8','#3b82f6','#e2e8f0','#ef4444'],
+      borderWidth:2, borderColor:'#fff' }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ position:'right' }, title:{ display:true, text:'Market Matrix (484 obs.)', font:{size:13,weight:'bold'} } }
+  }
+});
+
+// Chart 3 — Comportamiento Competitivo
+new Chart(document.getElementById('chartBehavior'), {
+  type: 'bar',
+  data: {
+    labels: ['Stable / Mixed','Flat/Mixed','Convenience-Driven','Price Inflation','Aggressive Pricing','Price War'],
+    datasets:[{ label:'Categorías',
+      data:[397,0,22,41,15,9],
+      backgroundColor:['#94a3b8','#94a3b8','#22c55e','#f59e0b','#8b5cf6','#ef4444'],
+      borderRadius:4 }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false, indexAxis:'y',
+    plugins:{ legend:{display:false}, title:{ display:true, text:'Distribución de Comportamiento Competitivo', font:{size:13,weight:'bold'} } },
+    scales:{ x:{ beginAtZero:true } }
+  }
+});
+</script>
+</body>
+</html>

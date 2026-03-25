@@ -18,6 +18,8 @@ bigquery_results/
 
 # Reportes generados (pueden regenerarse)
 *.html
+!methodology.html
+!index.html
 
 # Datos sensibles
 *.csv
