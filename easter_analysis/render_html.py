@@ -307,23 +307,25 @@ function buildKPIs(){{
       topByCtr[r.c] = r;
   }});
 
-  // Tarjeta global CAM (total de todas)
-  const totalCat  = Object.values(cs).reduce((a,v)=>a+v.total,0);
-  const totalSeas  = Object.values(cs).reduce((a,v)=>a+v.seasonal,0);
-  const totalSeasPct = (totalSeas/totalCat*100).toFixed(1);
-  const totalPW   = Object.values(cs).reduce((a,v)=>a+v.price_war,0);
-  const totalGain = Object.values(cs).reduce((a,v)=>a+v.wm_gain,0);
+  // Conteos DISTINTOS para Total CAM (una categoría puede aparecer en varios países)
+  const distinctCats    = new Set(D.cat.map(r=>r.cat)).size;
+  const distinctSeas    = new Set(D.cat.filter(r=>r.seas==='Yes').map(r=>r.cat)).size;
+  const distinctSeasPct = (distinctSeas/distinctCats*100).toFixed(1);
+  const distinctGain    = new Set(D.cat.filter(r=>r.mat==='Walmart Share Gain').map(r=>r.cat)).size;
+  const distinctPW      = new Set(D.cat.filter(r=>/Price War/.test(r.comp)).map(r=>r.cat)).size;
 
+  // Tarjeta global CAM (total de todas)
   const camCard = `
     <div class="card kpi p-3 border-t-4 border-blue-600">
       <div class="text-xs text-gray-400 font-bold uppercase tracking-wide">🌎 Total CAM</div>
-      <div class="text-2xl font-black text-blue-700 mt-0.5">${{totalCat}} cats</div>
+      <div class="text-2xl font-black text-blue-700 mt-0.5">${{distinctCats}} cats</div>
+      <div class="text-xs text-gray-300 -mt-0.5 mb-1">(${{D.cat.length}} filas país×cat)</div>
       <div class="mt-1">
-        <span class="font-bold text-green-700">${{totalSeas}}</span>
-        <span class="text-gray-500 text-xs"> estacionales</span>
-        <span class="ml-1 text-xs font-bold bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">${{totalSeasPct}}%</span>
+        <span class="font-bold text-green-700">${{distinctSeas}}</span>
+        <span class="text-gray-500 text-xs"> estacionales distintas</span>
+        <span class="ml-1 text-xs font-bold bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">${{distinctSeasPct}}%</span>
       </div>
-      <div class="text-xs text-gray-400 mt-1">${{totalGain}} WM Gain · ${{totalPW}} Price Wars</div>
+      <div class="text-xs text-gray-400 mt-1">${{distinctGain}} WM Gain · ${{distinctPW}} Price Wars</div>
     </div>`;
 
   // Una tarjeta por país
@@ -382,29 +384,28 @@ function buildInsights(){{
     </tr>`;
   }}).join('');
 
-  // Totales row
-  const tot = Object.values(cs);
-  const tCat  = tot.reduce((a,v)=>a+v.total,0);
-  const tSeas = tot.reduce((a,v)=>a+v.seasonal,0);
-  const tGain = tot.reduce((a,v)=>a+v.wm_gain,0);
-  const tPW   = tot.reduce((a,v)=>a+v.price_war,0);
-  const tPct  = (tSeas/tCat*100).toFixed(1);
-  const tBar  = Math.round(parseFloat(tPct));
+  // Totales row — distintos a nivel CAM
+  const dCat  = new Set(D.cat.map(r=>r.cat)).size;
+  const dSeas = new Set(D.cat.filter(r=>r.seas==='Yes').map(r=>r.cat)).size;
+  const dGain = new Set(D.cat.filter(r=>r.mat==='Walmart Share Gain').map(r=>r.cat)).size;
+  const dPW   = new Set(D.cat.filter(r=>/Price War/.test(r.comp)).map(r=>r.cat)).size;
+  const dPct  = (dSeas/dCat*100).toFixed(1);
+  const dBar  = Math.round(parseFloat(dPct));
 
   const totRow = `<tr class="bg-blue-50 font-bold border-t-2 border-blue-200">
-    <td class="py-1.5 px-2 text-blue-800">🌎 Total CAM</td>
-    <td class="py-1.5 px-2 text-center text-blue-800">${{tCat}}</td>
-    <td class="py-1.5 px-2 text-center text-green-700">${{tSeas}}</td>
+    <td class="py-1.5 px-2 text-blue-800">🌎 Total CAM <span class="font-normal text-xs text-blue-400">(distintos)</span></td>
+    <td class="py-1.5 px-2 text-center text-blue-800">${{dCat}}</td>
+    <td class="py-1.5 px-2 text-center text-green-700">${{dSeas}}</td>
     <td class="py-1.5 px-2">
       <div class="flex items-center gap-2">
         <div class="flex-1 bg-gray-100 rounded-full h-2" style="min-width:80px">
-          <div class="bg-blue-500 h-2 rounded-full" style="width:${{tBar}}%"></div>
+          <div class="bg-blue-500 h-2 rounded-full" style="width:${{dBar}}%"></div>
         </div>
-        <span class="text-xs font-bold text-blue-700 w-10">${{tPct}}%</span>
+        <span class="text-xs font-bold text-blue-700 w-10">${{dPct}}%</span>
       </div>
     </td>
-    <td class="py-1.5 px-2 text-center text-blue-700">${{tGain}}</td>
-    <td class="py-1.5 px-2 text-center ${{tPW>0?'text-red-700':'text-gray-400'}}">${{tPW||'—'}}</td>
+    <td class="py-1.5 px-2 text-center text-blue-700">${{dGain}}</td>
+    <td class="py-1.5 px-2 text-center ${{dPW>0?'text-red-700':'text-gray-400'}}">${{dPW||'—'}}</td>
   </tr>`;
 
   const summaryTable = `
