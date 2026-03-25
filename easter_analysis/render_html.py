@@ -20,6 +20,7 @@ HTML = f"""<!DOCTYPE html>
 <title>Easter Week Seasonality Analysis 2025 – Pricing Intelligence CAM</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 body{{font-family:'Segoe UI',sans-serif;background:#f0f4f8}}
 .wm-blue{{background:#0053e2}}
@@ -53,6 +54,8 @@ table thead th{{position:sticky;top:0;background:#f1f5f9;z-index:2}}
 .fsel{{border:1px solid #cbd5e1;border-radius:8px;padding:5px 10px;font-size:13px;background:#f8fafc}}
 .insight-bullet{{padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px;color:#334155}}
 .insight-bullet:last-child{{border:none}}
+.btn-excel{{display:inline-flex;align-items:center;gap:6px;background:#2a8703;color:white;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s;}}
+.btn-excel:hover{{background:#1e6402}}
 </style>
 </head>
 <body class="min-h-screen">
@@ -123,7 +126,8 @@ table thead th{{position:sticky;top:0;background:#f1f5f9;z-index:2}}
       <select class="fsel" id="fCatSeas" onchange="renderCatTable()"><option value="">All</option><option value="Yes">Seasonal Only</option><option value="No">Non-Seasonal</option></select>
       <select class="fsel" id="fCatMat" onchange="renderCatTable()"><option value="">All Matrix</option><option>Market-Wide Growth</option><option>Walmart Share Gain</option><option>Walmart Share Loss</option><option>Flat / Mixed</option><option>Market Contraction</option></select>
       <input class="fsel" id="fCatSearch" placeholder="Search category..." oninput="renderCatTable()" style="width:180px" />
-      <span class="text-xs text-gray-400 ml-auto" id="catCount"></span>
+      <span class="text-xs text-gray-400" id="catCount"></span>
+      <button class="btn-excel" onclick="downloadCatExcel()">⬇️ Download Excel</button>
     </div>
   </div>
   <div class="card overflow-auto" style="max-height:520px">
@@ -152,7 +156,8 @@ table thead th{{position:sticky;top:0;background:#f1f5f9;z-index:2}}
       <select class="fsel" id="fUPCRole" onchange="renderUPCTable()"><option value="">All Roles</option><option>Destination</option><option>Impulse / Convenience</option><option>Complementary</option><option>Other</option></select>
       <select class="fsel" id="fUPCMat" onchange="renderUPCTable()"><option value="">All Matrix</option><option>Market-Wide Growth</option><option>Walmart Share Gain</option><option>Walmart Share Loss</option></select>
       <input class="fsel" id="fUPCSearch" placeholder="Search UPC/desc..." oninput="renderUPCTable()" style="width:180px" />
-      <span class="text-xs text-gray-400 ml-auto" id="upcCount"></span>
+      <span class="text-xs text-gray-400" id="upcCount"></span>
+      <button class="btn-excel" onclick="downloadUPCExcel()">⬇️ Download Excel</button>
     </div>
   </div>
   <div class="card overflow-auto" style="max-height:600px">
@@ -555,6 +560,97 @@ function buildMatrixCharts(){{
       scales:{{y:{{ticks:{{font:{{size:9}}}}}},x:{{ticks:{{callback:v=>(v>=0?'+':'')+v+'pp'}}}}}}
     }}
   }});
+}}
+
+// ---- EXCEL EXPORT ----
+function catRowToExcel(r){{
+  return {{
+    'Country': r.c,
+    'SBU': r.sbu,
+    'Category': r.cat,
+    'Easter WM Units': r.ewu,
+    'Easter Market Units': r.emu,
+    'Easter Total Units': r.etu,
+    'Easter WM Sales': r.ews,
+    'Easter Market Sales': r.ems,
+    'Easter Total Sales': r.ets,
+    'Base Avg WM Units/Wk': r.bwu,
+    'Base Avg Mkt Units/Wk': r.bmu,
+    'Base Avg Tot Units/Wk': r.btu,
+    'Base Avg WM Sales/Wk': r.bws,
+    'Base Avg Mkt Sales/Wk': r.bms,
+    'Base Avg Tot Sales/Wk': r.bts,
+    'WM Unit Lift': r.wl,
+    'Market Unit Lift': r.ml,
+    'Total Unit Lift': r.tl,
+    'Easter WM Share %': r.ews_pct,
+    'Base WM Share %': r.bws_pct,
+    'WM Share Delta (pp)': r.spd,
+    'Easter AMP': r.ea,
+    'Base AMP': r.ba,
+    'AMP Change %': r.ac,
+    'Easter WM Price': r.ewp,
+    'Base WM Price': r.bwp,
+    'WM Price Change %': r.wpc,
+    'IS_EASTER_SEASONAL': r.seas,
+    'Purchase Role': r.role,
+    'Competitive Behavior': r.comp,
+    'Market Matrix': r.mat,
+    'P75 Country Lift': r.p75,
+  }};
+}}
+
+function upcRowToExcel(r){{
+  return {{
+    'Country': r.c,
+    'UPC': r.upc,
+    'Description': r.desc,
+    'Category': r.cat,
+    'SBU': r.sbu,
+    'Easter WM Units': r.ewu,
+    'Easter Market Units': r.emu,
+    'Easter Total Units': r.etu,
+    'Easter WM Sales': r.ews,
+    'Base Avg WM Units/Wk': r.bwu,
+    'Base Avg Tot Units/Wk': r.btu,
+    'WM Unit Lift': r.wl,
+    'Total Unit Lift': r.tl,
+    'Market Unit Lift': r.ml,
+    'Easter WM Share %': r.ews_pct,
+    'Base WM Share %': r.bws_pct,
+    'WM Share Delta (pp)': r.spd,
+    'Easter AMP': r.ea,
+    'Base AMP': r.ba,
+    'AMP Change %': r.ac,
+    'Easter WM Price': r.ewp,
+    'Base WM Price': r.bwp,
+    'IS_EASTER_SEASONAL': r.seas,
+    'Purchase Role': r.role,
+    'Competitive Behavior': r.comp,
+    'Market Matrix': r.mat,
+  }};
+}}
+
+function exportToExcel(rows, filename, sheetName){{
+  const ws = XLSX.utils.json_to_sheet(rows);
+  // Auto column width
+  const cols = Object.keys(rows[0]||{{}});
+  ws['!cols'] = cols.map(k => ({{wch: Math.min(Math.max(k.length, 10), 40)}}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, filename);
+}}
+
+function downloadCatExcel(){{
+  const rows = catFiltered().map(catRowToExcel);
+  if(!rows.length){{ alert('No hay datos con los filtros actuales.'); return; }}
+  exportToExcel(rows, 'Easter_2025_Category_Analysis.xlsx', 'Categories');
+}}
+
+function downloadUPCExcel(){{
+  const rows = upcFiltered().map(upcRowToExcel);
+  if(!rows.length){{ alert('No hay datos con los filtros actuales.'); return; }}
+  exportToExcel(rows, 'Easter_2025_UPC_Analysis.xlsx', 'UPCs');
 }}
 
 // ---- INIT ----
