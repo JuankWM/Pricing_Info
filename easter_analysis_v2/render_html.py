@@ -51,10 +51,10 @@ def build_html() -> str:
 <!-- TABS -->
 <div class="px-6 pb-0">
   <div class="flex gap-1 overflow-x-auto">
-    <div class="tab active" onclick="switchTab('tabCat')">&#x1F4CA; Category Analysis</div>
-    <div class="tab" onclick="switchTab('tabUPC')">&#x1F3F7;&#xFE0F; UPC Analysis</div>
-    <div class="tab" onclick="switchTab('tabMatrix')">&#x1F5FA;&#xFE0F; Market Matrix &amp; Charts</div>
-    <div class="tab" onclick="switchTab('tabMethod')">&#x1F4D6; Methodology</div>
+    <div class="tab active" data-tab="tabCat" onclick="switchTab('tabCat')">Category Analysis</div>
+    <div class="tab" data-tab="tabUPC" onclick="switchTab('tabUPC')">UPC Analysis</div>
+    <div class="tab" data-tab="tabMatrix" onclick="switchTab('tabMatrix')">Market Matrix &amp; Charts</div>
+    <div class="tab" data-tab="tabMethod" onclick="switchTab('tabMethod')">Methodology</div>
   </div>
 </div>
 
@@ -269,7 +269,7 @@ def build_html() -> str:
 def main():
     html = build_html()
     out  = BASE / "index.html"
-    with open(out, "w", encoding="utf-8", errors="replace") as f:
+    with open(out, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Report written: {out}  ({out.stat().st_size / 1024:.1f} KB)")
 
