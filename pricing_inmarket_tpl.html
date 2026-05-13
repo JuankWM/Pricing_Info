@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PG InMarket – OBW vs COMP MB</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<style>
+  :root{--wm-blue:#0053e2;--wm-spark:#ffc220;}
+  .tab-btn{@apply px-4 py-2 rounded-t-lg font-semibold text-sm border-b-2 border-transparent text-gray-500;}
+  .tab-btn.active{border-color:var(--wm-blue);color:var(--wm-blue);}
+  .kpi{@apply bg-white rounded-xl shadow p-4 text-center;}
+  .kpi .val{@apply text-3xl font-bold;color:var(--wm-blue);}
+  .kpi .lbl{@apply text-xs text-gray-500 mt-1;}
+  th{@apply bg-gray-100 text-xs font-semibold text-gray-600 px-3 py-2 whitespace-nowrap;}
+  td{@apply text-xs px-3 py-1.5 border-b border-gray-100;}
+  .pill{@apply inline-block px-2 py-0.5 rounded-full text-white text-xs font-bold;}
+  .neg{background:#ea1100;} .r05{background:#2a8703;} .r10{background:#ffc220;color:#333;}
+  .r10p{background:#0053e2;} .unk{background:#9ca3af;}
+  .chart-wrap{position:relative;height:260px;}
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+
+<!-- HEADER -->
+<header class="text-white px-6 py-4 flex items-center gap-4 shadow-md" style="background:var(--wm-blue)">
+  <div class="text-2xl font-black tracking-tight">⚡ PG InMarket</div>
+  <div class="text-sm opacity-80">OBW vs COMP MB · Análisis de Price Gap por Semana</div>
+</header>
+
+<!-- FILTERS -->
+<div class="bg-white shadow-sm px-6 py-3 flex flex-wrap gap-3 items-end sticky top-0 z-20">
+  <div>
+    <label class="text-xs text-gray-500 block mb-1">País</label>
+    <select id="fCC" class="border rounded px-2 py-1 text-sm"><option value="">Todos</option></select>
+  </div>
+  <div>
+    <label class="text-xs text-gray-500 block mb-1">División</label>
+    <select id="fDV" class="border rounded px-2 py-1 text-sm"><option value="">Todas</option></select>
+  </div>
+  <div>
+    <label class="text-xs text-gray-500 block mb-1">Categoría</label>
+    <select id="fCAT" class="border rounded px-2 py-1 text-sm"><option value="">Todas</option></select>
+  </div>
+  <div>
+    <label class="text-xs text-gray-500 block mb-1">Buscar UPC / Descripción</label>
+    <input id="fUPC" placeholder="Ej: 7441…" class="border rounded px-2 py-1 text-sm w-48"/>
+  </div>
+  <button onclick="clearFilters()" class="text-xs border rounded px-3 py-1 text-gray-500 hover:bg-gray-100">✕ Limpiar</button>
+</div>
+
+<!-- KPIs -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 px-6 py-4">
+  <div class="kpi"><div id="kTotUpc" class="val">–</div><div class="lbl">UPCs Totales</div></div>
+  <div class="kpi"><div id="kCanUpc" class="val">–</div><div class="lbl">UPCs Canasto</div></div>
+  <div class="kpi"><div id="kNoCanUpc" class="val">–</div><div class="lbl">UPCs No Canasto</div></div>
+  <div class="kpi"><div id="kCanU" class="val">–</div><div class="lbl">% Unidades Canasto</div></div>
+  <div class="kpi"><div id="kNoCanU" class="val">–</div><div class="lbl">% Unidades No Canasto</div></div>
+</div>
+
+<!-- TABS -->
+<div class="px-6">
+  <div class="flex gap-1 border-b">
+    <button class="tab-btn active" onclick="setTab(0,this)">📊 Canasto vs No Canasto</button>
+    <button class="tab-btn"        onclick="setTab(1,this)">🔍 Análisis por Rango</button>
+    <button class="tab-btn"        onclick="setTab(2,this)">📅 Persistencia Semanal</button>
+  </div>
+
+  <!-- TAB 0 -->
+  <div id="tab0" class="tab-pane py-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white rounded-xl shadow p-4">
+        <h3 class="font-semibold text-sm mb-2">Distribución de Unidades (OBW)</h3>
+        <div class="chart-wrap"><canvas id="chDonut"></canvas></div>
+      </div>
+      <div class="bg-white rounded-xl shadow p-4">
+        <h3 class="font-semibold text-sm mb-2">UPCs por Rango de PG OBW</h3>
+        <div class="chart-wrap"><canvas id="chBar"></canvas></div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow mt-4 overflow-auto">
+      <table class="w-full">
+        <thead><tr>
+          <th>Rango PG OBW</th>
+          <th>UPCs Canasto</th><th>UPCs No Canasto</th><th>Total UPCs (%)</th>
+          <th>Total Unidades (%)</th><th>Unidades Canasto</th><th>Unidades No Canasto</th>
+          <th>PG OBW</th><th>PG InMarket (COMP MB)</th>
+        </tr></thead>
+        <tbody id="tbl0"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 1 -->
+  <div id="tab1" class="tab-pane py-4 hidden">
+    <div class="flex gap-2 mb-3 flex-wrap items-center">
+      <span class="text-sm text-gray-500">Nivel:</span>
+      <button class="lvl-btn active-lvl px-3 py-1 rounded text-xs border" onclick="setLvl('cc',this)">País</button>
+      <button class="lvl-btn px-3 py-1 rounded text-xs border" onclick="setLvl('dv',this)">División</button>
+      <button class="lvl-btn px-3 py-1 rounded text-xs border" onclick="setLvl('cat',this)">Categoría</button>
+      <button class="lvl-btn px-3 py-1 rounded text-xs border" onclick="setLvl('upc',this)">UPC</button>
+    </div>
+    <div class="bg-white rounded-xl shadow overflow-auto">
+      <table class="w-full" id="tbl1w">
+        <thead id="tbl1h"></thead>
+        <tbody id="tbl1"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 2 -->
+  <div id="tab2" class="tab-pane py-4 hidden">
+    <div class="flex gap-4 flex-wrap items-end mb-4 bg-white rounded-xl shadow p-4">
+      <div>
+        <label class="text-xs text-gray-500 block mb-1">Rango a analizar</label>
+        <select id="pRng" class="border rounded px-2 py-1 text-sm" onchange="renderTab2()">
+          <option value="neg">&lt; 0%</option>
+          <option value="r05">0% – 5%</option>
+          <option value="r10">5% – 10%</option>
+          <option value="r10p">&gt; 10%</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 block mb-1">Mínimo de semanas en rango</label>
+        <input id="pWks" type="number" value="3" min="1" max="14" class="border rounded px-2 py-1 text-sm w-20" onchange="renderTab2()"/>
+      </div>
+      <div class="text-xs text-gray-400">Semanas disponibles: <span id="pTotWks"></span></div>
+    </div>
+    <!-- UPC table -->
+    <div class="bg-white rounded-xl shadow overflow-auto mb-4">
+      <div class="px-4 pt-3 pb-1 font-semibold text-sm">UPCs persistentes</div>
+      <table class="w-full">
+        <thead><tr>
+          <th>País</th><th>División</th><th>Categoría</th><th>UPC</th><th>Descripción</th>
+          <th>Canasto</th><th>Semanas en rango</th><th>Máx. consecutivas</th>
+          <th>Unidades</th><th>PG OBW</th><th>PG InMarket</th>
+        </tr></thead>
+        <tbody id="tbl2u"></tbody>
+      </table>
+    </div>
+    <!-- Category summary -->
+    <div class="bg-white rounded-xl shadow overflow-auto">
+      <div class="px-4 pt-3 pb-1 font-semibold text-sm">Resumen por Categoría</div>
+      <table class="w-full">
+        <thead><tr>
+          <th>País</th><th>Categoría</th>
+          <th># UPCs en rango</th><th>Máx. sem. consec.</th>
+          <th>Unidades</th><th>PG OBW prom.</th><th>PG InMarket prom.</th>
+        </tr></thead>
+        <tbody id="tbl2c"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+/*__DATA__*/
+
+// ── state ──────────────────────────────────────────────────────────────────
+const S = { cc:"", dv:"", cat:"", upc:"", tab:0, lvl:"cc" };
+let charts = {};
+
+// ── utils ──────────────────────────────────────────────────────────────────
+const fmt  = v => v == null ? "–" : v.toLocaleString("es-GT",{maximumFractionDigits:1});
+const fmtP = v => v == null ? "–" : v.toFixed(2)+"%";
+const pillH= r => `<span class="pill ${r}">${DATA.rLabels[r]??r}</span>`;
+const wavg = (items,vf,wf) => {
+  let sv=0,sw=0;
+  items.forEach(r=>{const v=vf(r),w=wf(r);if(v!=null&&!isNaN(v)){sv+=v*w;sw+=w;}});
+  return sw>0?sv/sw:null;
+};
+
+function filtered(){
+  return DATA.records.filter(r=>
+    (!S.cc  || r.cc  === S.cc)  &&
+    (!S.dv  || r.dv  === S.dv)  &&
+    (!S.cat || r.cat === S.cat) &&
+    (!S.upc || r.upc.includes(S.upc) || r.desc.toLowerCase().includes(S.upc.toLowerCase()))
+  );
+}
+
+// ── filters setup ──────────────────────────────────────────────────────────
+function buildFilters(){
+  const cc = document.getElementById("fCC");
+  Object.keys(DATA.hier).sort().forEach(c=>cc.add(new Option(c,c)));
+}
+function cascadeFilters(){
+  const dvEl  = document.getElementById("fDV");
+  const catEl = document.getElementById("fCAT");
+  dvEl.innerHTML  = "<option value=''>Todas</option>";
+  catEl.innerHTML = "<option value=''>Todas</option>";
+  if(S.cc){
+    Object.keys(DATA.hier[S.cc]||{}).sort().forEach(d=>dvEl.add(new Option(d,d)));
+  }
+  if(S.cc && S.dv){
+    (DATA.hier[S.cc]?.[S.dv]||[]).sort().forEach(c=>catEl.add(new Option(c,c)));
+  }
+}
+function clearFilters(){
+  S.cc=S.dv=S.cat=S.upc="";
+  ["fCC","fDV","fCAT"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("fUPC").value="";
+  cascadeFilters(); renderAll();
+}
+
+// ── KPIs ───────────────────────────────────────────────────────────────────
+function renderKPIs(recs){
+  const can   = recs.filter(r=>r.can);
+  const noCan = recs.filter(r=>!r.can);
+  const totU  = recs.reduce((a,r)=>a+r.u,0);
+  const canU  = can.reduce((a,r)=>a+r.u,0);
+  document.getElementById("kTotUpc").textContent  = recs.length.toLocaleString();
+  document.getElementById("kCanUpc").textContent  = can.length.toLocaleString();
+  document.getElementById("kNoCanUpc").textContent= noCan.length.toLocaleString();
+  document.getElementById("kCanU").textContent    = totU?((canU/totU*100).toFixed(1)+"%"):"–";
+  document.getElementById("kNoCanU").textContent  = totU?(((totU-canU)/totU*100).toFixed(1)+"%"):"–";
+}
+
+// ── TAB 0 ──────────────────────────────────────────────────────────────────
+function renderTab0(recs){
+  const can   = recs.filter(r=>r.can);
+  const noCan = recs.filter(r=>!r.can);
+  const canU  = can.reduce((a,r)=>a+r.u,0);
+  const noU   = noCan.reduce((a,r)=>a+r.u,0);
+  const totU  = canU + noU;
+  const totN  = recs.length;
+
+  // ── donut con % por segmento ────────────────────────────────────────────
+  const dCtx = document.getElementById("chDonut");
+  if(charts.donut) charts.donut.destroy();
+  charts.donut = new Chart(dCtx,{type:"doughnut",data:{
+    labels:["Canasto","No Canasto"],
+    datasets:[{data:[canU,noU],backgroundColor:["#0053e2","#ffc220"],borderWidth:2}]
+  },options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{
+      legend:{position:"bottom"},
+      datalabels:{
+        color:["#fff","#333"],
+        font:{weight:"bold",size:13},
+        formatter:(value,ctx)=>{
+          const tot=ctx.dataset.data.reduce((a,b)=>a+b,0);
+          return tot>0?(value/tot*100).toFixed(1)+"%":"";
+        }
+      }
+    }
+  },plugins:[ChartDataLabels]});
+
+  // ── bar con PG OBW ponderado encima de cada grupo ──────────────────────
+  const rngsF  = DATA.ranges.filter(r=>r!=="unk");
+  const rngData = rngsF.map(r=>{
+    const allR = recs.filter(x=>x.ro===r);
+    return {
+      r,
+      canN:  can.filter(x=>x.ro===r).length,
+      noN:   noCan.filter(x=>x.ro===r).length,
+      pgObw: wavg(allR,x=>x.po,x=>x.u)
+    };
+  });
+
+  const barTopPlugin = {
+    id:"barTop",
+    afterDatasetsDraw(chart){
+      const {ctx}=chart;
+      ctx.save();
+      ctx.font="bold 11px sans-serif";
+      ctx.textAlign="center";
+      ctx.fillStyle="#374151";
+      rngData.forEach((d,i)=>{
+        if(d.pgObw==null) return;
+        const meta = chart.getDatasetMeta(chart.data.datasets.length-1);
+        const bar  = meta.data[i];
+        if(!bar) return;
+        const yTop = chart.scales.y.getPixelForValue(d.canN+d.noN);
+        ctx.fillText(fmtP(d.pgObw), bar.x, yTop-6);
+      });
+      ctx.restore();
+    }
+  };
+
+  const bCtx = document.getElementById("chBar");
+  if(charts.bar) charts.bar.destroy();
+  charts.bar = new Chart(bCtx,{type:"bar",data:{
+    labels:rngData.map(x=>DATA.rLabels[x.r]),
+    datasets:[
+      {label:"Canasto",   data:rngData.map(x=>x.canN),backgroundColor:"#0053e2"},
+      {label:"No Canasto",data:rngData.map(x=>x.noN), backgroundColor:"#ffc220"}
+    ]
+  },options:{
+    responsive:true,maintainAspectRatio:false,
+    scales:{x:{stacked:true},y:{stacked:true,ticks:{padding:8}}},
+    plugins:{legend:{position:"bottom"},datalabels:{display:false}}
+  },plugins:[barTopPlugin]});
+
+  // ── tabla con % de totales y columna de Total Unidades ─────────────────
+  const rows = rngsF.map(rk=>{
+    const cRecs  = can.filter(x=>x.ro===rk);
+    const nRecs  = noCan.filter(x=>x.ro===rk);
+    const allRec = recs.filter(x=>x.ro===rk);
+    const totRN  = cRecs.length + nRecs.length;
+    const pctN   = totN>0?" <span class='text-gray-400 font-normal'>("+(totRN/totN*100).toFixed(1)+"%)</span>":"";
+    const cU     = cRecs.reduce((a,r)=>a+r.u,0);
+    const nU     = nRecs.reduce((a,r)=>a+r.u,0);
+    const totRU  = cU + nU;
+    const pctU   = totU>0?" <span class='text-gray-400 font-normal'>("+(totRU/totU*100).toFixed(1)+"%)</span>":"";
+    const pOBW   = wavg(allRec,r=>r.po,r=>r.u);
+    const pComp  = wavg(cRecs, r=>r.pc,r=>r.u);
+    return `<tr>
+      <td>${pillH(rk)}</td>
+      <td class="text-right">${cRecs.length.toLocaleString()}</td>
+      <td class="text-right">${nRecs.length.toLocaleString()}</td>
+      <td class="text-right font-semibold">${totRN.toLocaleString()}${pctN}</td>
+      <td class="text-right font-semibold">${fmt(totRU)}${pctU}</td>
+      <td class="text-right">${fmt(cU)}</td>
+      <td class="text-right">${fmt(nU)}</td>
+      <td class="text-right">${fmtP(pOBW)}</td>
+      <td class="text-right font-semibold">${fmtP(pComp)}</td>
+    </tr>`;
+  });
+  document.getElementById("tbl0").innerHTML = rows.join("");
+}
+
+// ── TAB 1 ──────────────────────────────────────────────────────────────────
+let curLvl = "cc";
+function setLvl(lvl,btn){
+  curLvl=lvl;
+  document.querySelectorAll(".lvl-btn").forEach(b=>b.classList.remove("active-lvl","bg-blue-600","text-white"));
+  btn.classList.add("active-lvl","bg-blue-600","text-white");
+  renderTab1(filtered());
+}
+
+function renderTab1(recs){
+  const LVL_KEY = {cc:"cc",dv:"dv",cat:"cat",upc:"upc"};
+  const LVL_LBL = {cc:"País",dv:"División",cat:"Categoría",upc:"UPC"};
+  const k = LVL_KEY[curLvl];
+  const groups = {};
+  recs.forEach(r=>{
+    const gk = k==="upc"?`${r.cc}|${r.upc}|${r.desc}`:r[k];
+    if(!groups[gk]) groups[gk]={label:k==="upc"?`${r.upc} – ${r.desc}`:r[k],recs:[]};
+    groups[gk].recs.push(r);
+  });
+
+  const rngs = DATA.ranges.filter(x=>x!=="unk");
+  const hdr = `<tr><th>${LVL_LBL[curLvl]}</th><th># UPCs</th><th>Unidades</th>
+    ${rngs.map(r=>`<th>UPCs ${DATA.rLabels[r]}</th><th>PG OBW</th><th>PG InMarket</th>`).join("")}
+  </tr>`;
+  document.getElementById("tbl1h").innerHTML = hdr;
+
+  const rows = Object.values(groups).sort((a,b)=>b.recs.length-a.recs.length).map(g=>{
+    const totU = g.recs.reduce((a,r)=>a+r.u,0);
+    const cells = rngs.map(rk=>{
+      const sub = g.recs.filter(r=>r.ro===rk);
+      const po  = wavg(sub,r=>r.po,r=>r.u);
+      const pc  = wavg(sub.filter(r=>r.can),r=>r.pc,r=>r.u);
+      return `<td class="text-right">${sub.length}</td><td class="text-right">${fmtP(po)}</td><td class="text-right">${fmtP(pc)}</td>`;
+    }).join("");
+    return `<tr><td class="font-medium">${g.label}</td>
+      <td class="text-right">${g.recs.length.toLocaleString()}</td>
+      <td class="text-right">${fmt(totU)}</td>${cells}</tr>`;
+  });
+  document.getElementById("tbl1").innerHTML = rows.join("") || "<tr><td colspan='20' class='text-center py-4 text-gray-400'>Sin datos</td></tr>";
+}
+
+// ── TAB 2 ──────────────────────────────────────────────────────────────────
+function renderTab2(){
+  const rng  = document.getElementById("pRng").value;
+  const minW = parseInt(document.getElementById("pWks").value)||1;
+  document.getElementById("pTotWks").textContent = DATA.weeks.length;
+
+  const recs = filtered().filter(r=>(r.rc[rng]||0)>=minW)
+    .sort((a,b)=>(b.mc[rng]||0)-(a.mc[rng]||0));
+
+  // UPC table
+  const uRows = recs.map(r=>`<tr>
+    <td>${r.cc}</td><td>${r.dv}</td><td class="max-w-xs truncate">${r.cat}</td>
+    <td class="font-mono">${r.upc}</td>
+    <td class="max-w-xs truncate">${r.desc}</td>
+    <td><span class="pill ${r.can?'r05':'r10'}">${r.can?"✔ Sí":"✘ No"}</span></td>
+    <td class="text-center font-bold">${r.rc[rng]??0}</td>
+    <td class="text-center font-bold text-blue-700">${r.mc[rng]??0}</td>
+    <td class="text-right">${fmt(r.u)}</td>
+    <td class="text-right">${fmtP(r.po)}</td>
+    <td class="text-right">${fmtP(r.pc)}</td>
+  </tr>`);
+  document.getElementById("tbl2u").innerHTML = uRows.join("") || "<tr><td colspan='11' class='text-center py-4 text-gray-400'>Sin UPCs con esos criterios</td></tr>";
+
+  // Category summary
+  const catG = {};
+  recs.forEach(r=>{
+    const k = `${r.cc}||${r.cat}`;
+    if(!catG[k]) catG[k]={cc:r.cc,cat:r.cat,n:0,mx:0,u:0,sPo:0,sPc:0,wPc:0,wPo:0};
+    catG[k].n++;
+    catG[k].mx   = Math.max(catG[k].mx, r.mc[rng]||0);
+    catG[k].u   += r.u;
+    catG[k].sPo += (r.po??0)*r.u; catG[k].wPo += r.u;
+    if(r.pc!=null){catG[k].sPc+=(r.pc)*r.u; catG[k].wPc+=r.u;}
+  });
+  const cRows = Object.values(catG).sort((a,b)=>b.n-a.n).map(g=>`<tr>
+    <td>${g.cc}</td><td class="max-w-xs truncate">${g.cat}</td>
+    <td class="text-center font-bold">${g.n}</td>
+    <td class="text-center text-blue-700 font-bold">${g.mx}</td>
+    <td class="text-right">${fmt(g.u)}</td>
+    <td class="text-right">${g.wPo?fmtP(g.sPo/g.wPo):"–"}</td>
+    <td class="text-right">${g.wPc?fmtP(g.sPc/g.wPc):"–"}</td>
+  </tr>`);
+  document.getElementById("tbl2c").innerHTML = cRows.join("") || "<tr><td colspan='7' class='text-center py-4 text-gray-400'>Sin datos</td></tr>";
+}
+
+// ── tab switching ──────────────────────────────────────────────────────────
+function setTab(idx,btn){
+  document.querySelectorAll(".tab-btn").forEach((b,i)=>b.classList.toggle("active",i===idx));
+  document.querySelectorAll(".tab-pane").forEach((p,i)=>p.classList.toggle("hidden",i!==idx));
+  S.tab=idx;
+  renderAll();
+}
+
+// ── render all ─────────────────────────────────────────────────────────────
+function renderAll(){
+  const recs = filtered();
+  renderKPIs(recs);
+  if(S.tab===0) renderTab0(recs);
+  if(S.tab===1) renderTab1(recs);
+  if(S.tab===2) renderTab2();
+}
+
+// ── event listeners ────────────────────────────────────────────────────────
+document.getElementById("fCC").addEventListener("change",e=>{S.cc=e.target.value;S.dv="";S.cat="";cascadeFilters();renderAll();});
+document.getElementById("fDV").addEventListener("change",e=>{S.dv=e.target.value;S.cat="";cascadeFilters();renderAll();});
+document.getElementById("fCAT").addEventListener("change",e=>{S.cat=e.target.value;renderAll();});
+let _t; document.getElementById("fUPC").addEventListener("input",e=>{clearTimeout(_t);_t=setTimeout(()=>{S.upc=e.target.value;renderAll();},300);});
+
+// ── init ───────────────────────────────────────────────────────────────────
+buildFilters();
+document.querySelector(".lvl-btn").classList.add("bg-blue-600","text-white");
+renderAll();
+</script>
+</body>
+</html>

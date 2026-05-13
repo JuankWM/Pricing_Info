@@ -1,0 +1,11 @@
+# datos crudos de BigQuery — demasiado grandes y se regeneran con build_pricing_inmarket.py
+*.csv
+
+# entornos virtuales
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# variables de entorno
+.env
