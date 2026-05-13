@@ -1,11 +1,52 @@
-# datos crudos de BigQuery — demasiado grandes y se regeneran con build_pricing_inmarket.py
-*.csv
-
-# entornos virtuales
-venv/
-.venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+*.egg-info/
+dist/
+build/
 
-# variables de entorno
+# BigQuery Results
+bigquery_results/
+*.json
+
+# Datos crudos — demasiado grandes, se regeneran desde BQ
+*.csv
+*.xlsx
+*.db
+*.sqlite
+*.sqlite3
+
+# Reportes generados (pueden regenerarse) — excepciones explícitas
+*.html
+!methodology.html
+!index.html
+!pricing_inmarket_report.html
+!pricing_inmarket_tpl.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Credenciales
 .env
+.env.local
+secrets.json
+credentials.json

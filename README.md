@@ -1,34 +1,52 @@
-# PG InMarket — OBW vs COMP MB
+# Pricing Info — Walmart Centroamérica
 
-Reporte interactivo de Price Gap para Walmart Centroamérica (CR, GT, HN, NI).
+Repositorio de análisis de precios e inteligencia de mercado para CR, GT, HN y NI.
 
-## Archivos
+**Stack**: Python · BigQuery · HTML + Tailwind CSS · Chart.js
+
+---
+
+## 📦 Proyectos
+
+### ⚡ PG InMarket — OBW vs COMP MB
+Reporte interactivo de Price Gap comparando la canasta propia de Walmart (OBW) contra la canasta de competidores (COMP MB).
 
 | Archivo | Descripción |
 |---|---|
-| `build_pricing_inmarket.py` | Script Python que lee el CSV de BQ y genera el reporte |
-| `pricing_inmarket_tpl.html` | Template HTML/JS del reporte interactivo |
-| `pricing_inmarket_report.html` | Reporte generado (self-contained, abrir en browser) |
+| `build_pricing_inmarket.py` | Pipeline Python: CSV de BQ → HTML self-contained |
+| `pricing_inmarket_tpl.html` | Template HTML/JS del reporte |
+| `pricing_inmarket_report.html` | Reporte generado — abrir directo en browser |
 
-## Cómo regenerar el reporte
+**Cómo regenerar:**
+```bash
+# 1. Exportar desde BQ la tabla:
+#    wmt-k1-cons-data-users.k1_adhoc_tables.prcng_OBW_inMKT_26_COMP
+# 2. Guardar como prcng_OBW_inMKT_26_COMP_results.csv en esta carpeta
+python build_pricing_inmarket.py
+```
 
-1. Exportar la query de BigQuery a `prcng_OBW_inMKT_26_COMP_results.csv`
-   (tabla: `wmt-k1-cons-data-users.k1_adhoc_tables.prcng_OBW_inMKT_26_COMP`)
-2. Poner el CSV en la misma carpeta
-3. Correr:
-   ```
-   python build_pricing_inmarket.py
-   ```
-
-## Fuentes de datos
-
-- **OBW**: Own Basket Watch — PG de la canasta propia de Walmart
-- **COMP MB**: Competitor Market Basket — PG contra canasta de competidores (PG InMarket)
-- **Período**: Semanas 213–226 (Enero–Abril 2026)
-- **Price Gap**: `SUM(FACTOR) / SUM(PESO)` ponderado por unidades
-
-## Tabs del reporte
-
-1. **Canasto vs No Canasto** — distribución de UPCs y unidades por segmento y rango
+**Tabs del reporte:**
+1. **Canasto vs No Canasto** — split de UPCs y unidades por segmento y rango de PG
 2. **Análisis por Rango** — drill-down por País / División / Categoría / UPC
-3. **Persistencia Semanal** — UPCs que llevan N semanas consecutivas en un rango crítico
+3. **Persistencia Semanal** — UPCs con N semanas consecutivas en un rango crítico
+
+**Período**: Semanas 213–226 (Ene–Abr 2026) · 24,223 UPCs · 4 países
+
+---
+
+### 🐣 Easter Analysis
+Análisis de variación de precios en semana santa y post-Semana Santa (W12–W17).
+
+### 📊 Competitor Pricing Report
+Análisis de tendencias de precios de competidores, variación por UPC y patrones promocionales.
+
+---
+
+## 🔐 Seguridad
+
+- CSVs y JSONs con datos de BQ están en `.gitignore` — regenerables, no se commitean
+- No compartir reportes con PII sin revisión previa
+- Requiere **Walmart VPN o Eagle WiFi** para acceder a BigQuery
+
+## 👤 Autor
+**Juan Carlos Catalan Marin** · juan.catalan@walmart.com
